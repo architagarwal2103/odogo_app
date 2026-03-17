@@ -1,10 +1,17 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../services/email_link_auth_service.dart';
 
 class ProfileOtpVerificationScreen extends StatefulWidget {
   final String contactInfo; // This will hold the new email or phone number
+  final String? verificationEmail;
 
-  const ProfileOtpVerificationScreen({super.key, required this.contactInfo});
+  const ProfileOtpVerificationScreen({
+    super.key,
+    required this.contactInfo,
+    this.verificationEmail,
+  });
 
   @override
   State<ProfileOtpVerificationScreen> createState() => _ProfileOtpVerificationScreenState();
@@ -12,6 +19,11 @@ class ProfileOtpVerificationScreen extends StatefulWidget {
 
 class _ProfileOtpVerificationScreenState extends State<ProfileOtpVerificationScreen> {
   final Color odogoGreen = const Color(0xFF66D2A3);
+  static const bool _bypassOtpFromEnv = bool.fromEnvironment('BYPASS_OTP', defaultValue: false);
+  static const String _debugBypassCode = '0000';
+  bool _isLoading = false;
+
+  bool get _isOtpBypassEnabled => !kReleaseMode && _bypassOtpFromEnv;
 
   // Focus nodes and controllers for the 4 PIN boxes
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
@@ -24,29 +36,101 @@ class _ProfileOtpVerificationScreenState extends State<ProfileOtpVerificationScr
     super.dispose();
   }
 
-  void _verifyAndSave() {
+  Future<void> _verifyAndSave() async {
     String otp = _controllers.map((c) => c.text).join();
-    
-    if (otp.length == 4) {
-      FocusScope.of(context).unfocus(); // Hide keyboard
 
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Verification successful! Profile updated.'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      // Pop twice: First closes this OTP screen, Second closes the Edit screen 
-      // This drops them perfectly back onto the main Profile tab!
-      Navigator.of(context)..pop()..pop(); 
-      
-    } else {
+    if (otp.length != 4 || !RegExp(r'^[0-9]{4}$').hasMatch(otp)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter the full 4-digit code.'), backgroundColor: Colors.red),
       );
+      return;
+    }
+
+    if (widget.verificationEmail != null) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final verified = EmailOtpAuthService.instance.verifyOtp(
+        email: widget.verificationEmail!,
+        otp: otp,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!verified) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid or expired OTP. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    } else {
+      if (_isOtpBypassEnabled && otp != _debugBypassCode) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid OTP for test mode. Use 0000.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    FocusScope.of(context).unfocus(); // Hide keyboard
+
+    // Show success message
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Verification successful! Profile updated.'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+
+    // Pop twice: First closes this OTP screen, Second closes the Edit screen
+    // This drops them perfectly back onto the main Profile tab!
+    Navigator.of(context)..pop()..pop();
+  }
+
+  Future<void> _resendOtp() async {
+    if (widget.verificationEmail == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('New code sent!'), backgroundColor: odogoGreen),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await EmailOtpAuthService.instance.sendOtp(email: widget.verificationEmail!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('New OTP sent!'), backgroundColor: odogoGreen),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '').trim();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message.isEmpty ? 'Could not resend OTP. Please try again.' : message),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -91,25 +175,33 @@ class _ProfileOtpVerificationScreenState extends State<ProfileOtpVerificationScr
 
               // Verify Button
               ElevatedButton(
-                onPressed: _verifyAndSave,
+                onPressed: _isLoading ? null : _verifyAndSave,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black, // Sleek black to match profile theme
                   minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Verify & Save', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                child: Text(
+                  _isLoading ? 'Please wait...' : 'Verify & Save',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
               
               const SizedBox(height: 24),
+
+              if (_isOtpBypassEnabled)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    'Test mode: use OTP 0000',
+                    style: TextStyle(color: Colors.grey, fontSize: 13),
+                  ),
+                ),
               
               // Resend Code Option
               Center(
                 child: GestureDetector(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: const Text('New code sent!'), backgroundColor: odogoGreen),
-                    );
-                  },
+                  onTap: _isLoading ? null : _resendOtp,
                   child: Text(
                     'Didn\'t receive a code? Resend',
                     style: TextStyle(color: odogoGreen, fontWeight: FontWeight.bold, fontSize: 15),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/email_link_auth_service.dart';
 import 'profile_otp_verification_screen.dart';
 
 class EmailEditScreen extends StatefulWidget {
@@ -10,6 +11,7 @@ class EmailEditScreen extends StatefulWidget {
 
 class _EmailEditScreenState extends State<EmailEditScreen> {
   final TextEditingController _controller = TextEditingController();
+  bool _isSendingOtp = false;
 
   @override
   void dispose() {
@@ -24,7 +26,7 @@ class _EmailEditScreenState extends State<EmailEditScreen> {
     );
   }
 
-  void _saveEmail() {
+  Future<void> _saveEmail() async {
     final email = _controller.text.trim();
 
     // 1. Check if empty
@@ -61,12 +63,35 @@ class _EmailEditScreenState extends State<EmailEditScreen> {
     // If it passes all checks, hide the keyboard
     FocusScope.of(context).unfocus();
 
+    setState(() {
+      _isSendingOtp = true;
+    });
+
+    try {
+      await EmailOtpAuthService.instance.sendOtp(email: email);
+    } catch (e) {
+      if (!mounted) return;
+      final message = e.toString().replaceFirst('Exception: ', '').trim();
+      _showError(message.isEmpty ? 'Could not send OTP. Please try again.' : message);
+      setState(() {
+        _isSendingOtp = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSendingOtp = false;
+    });
+
     // Push to the OTP screen and pass the securely validated email!
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ProfileOtpVerificationScreen(
-          contactInfo: email, 
+          contactInfo: email,
+          verificationEmail: email,
         ),
       ),
     );
@@ -131,13 +156,16 @@ class _EmailEditScreenState extends State<EmailEditScreen> {
               const SizedBox(height: 40),
               
               ElevatedButton(
-                onPressed: _saveEmail,
+                onPressed: _isSendingOtp ? null : _saveEmail,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF333333),
                   minimumSize: const Size.fromHeight(56),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('Send OTP', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                child: Text(
+                  _isSendingOtp ? 'Sending OTP...' : 'Send OTP',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ),
             ],
           ),
