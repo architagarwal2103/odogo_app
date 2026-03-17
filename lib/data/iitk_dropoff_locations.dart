@@ -24,8 +24,28 @@ class DropoffLocation {
         return true;
       }
     }
-
     return false;
+  }
+
+  static DropoffLocation? fromName(String searchName) {
+    final normalized = searchName.trim().toLowerCase();
+
+    for (final loc in iitkDropoffLocations) {
+      // 1. Check if it matches the primary name
+      if (loc.name.toLowerCase() == normalized) {
+        return loc;
+      }
+      
+      // 2. Check if it matches any alias
+      for (final alias in loc.aliases) {
+        if (alias.toLowerCase() == normalized) {
+          return loc;
+        }
+      }
+    }
+    
+    // Returns null if the location name/alias isn't in your local list
+    return null; 
   }
 }
 
