@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'driver_active_trip_screen.dart';
 import 'driver_cancel_confirmation_screen.dart'; 
@@ -15,10 +16,60 @@ class DriverActivePickupScreen extends StatefulWidget {
 class _DriverActivePickupScreenState extends State<DriverActivePickupScreen> {
   final Color odogoGreen = const Color(0xFF66D2A3);
   final Color etaOrange = const Color(0xFFEC5B13);
+  static const LatLng _driverLocation = LatLng(26.5100, 80.2300);
+  static const LatLng _fallbackPickupLocation = LatLng(26.5140, 80.2340);
+  static const double _avgDriverSpeedMetersPerSecond = 4.5; // ~16.2 km/h
+  LatLng _pickupLocation = _fallbackPickupLocation;
 
   // Focus nodes for the 4 PIN boxes
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
   final List<TextEditingController> _controllers = List.generate(4, (index) => TextEditingController());
+
+  @override
+  void initState() {
+    super.initState();
+    _setPickupFromCurrentLocation();
+  }
+
+  Future<void> _setPickupFromCurrentLocation() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (!mounted) return;
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled || !mounted) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      if (!mounted) return;
+      setState(() {
+        _pickupLocation = LatLng(position.latitude, position.longitude);
+      });
+    } catch (_) {
+      // Keep fallback pickup point if location fetch fails.
+    }
+  }
+
+  int get _etaMinutesToPickup {
+    final distanceMeters = Geolocator.distanceBetween(
+      _driverLocation.latitude,
+      _driverLocation.longitude,
+      _pickupLocation.latitude,
+      _pickupLocation.longitude,
+    );
+
+    final etaMinutes = (distanceMeters / _avgDriverSpeedMetersPerSecond / 60).ceil();
+    return etaMinutes < 1 ? 1 : etaMinutes;
+  }
 
   @override
   void dispose() {
@@ -36,7 +87,11 @@ class _DriverActivePickupScreenState extends State<DriverActivePickupScreen> {
       // Navigate to the Active Trip Screen
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const DriverActiveTripScreen()),
+        MaterialPageRoute(
+          builder: (context) => DriverActiveTripScreen(
+            pickupLocation: _pickupLocation,
+          ),
+        ),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,9 +120,13 @@ class _DriverActivePickupScreenState extends State<DriverActivePickupScreen> {
         children: [
           // 1. Live Dark Map with Route
           FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(26.5123, 80.2329), // Center between driver and pickup
+            options: MapOptions(
+              initialCenter: _pickupLocation,
               initialZoom: 16.5,
+              initialCameraFit: CameraFit.bounds(
+                bounds: LatLngBounds.fromPoints([_driverLocation, _pickupLocation]),
+                padding: const EdgeInsets.all(28),
+              ),
               interactionOptions: InteractionOptions(
                 flags: InteractiveFlag.all, // Ensures pinch-to-zoom is active
               ),
@@ -92,7 +151,7 @@ class _DriverActivePickupScreenState extends State<DriverActivePickupScreen> {
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: const [LatLng(26.5100, 80.2300), LatLng(26.5123, 80.2329), LatLng(26.5140, 80.2340)],
+                    points: [_driverLocation, _pickupLocation],
                     color: odogoGreen,
                     strokeWidth: 5.0,
                   ),
@@ -103,7 +162,7 @@ class _DriverActivePickupScreenState extends State<DriverActivePickupScreen> {
                 markers: [
                   // Driver Location
                   Marker(
-                    point: const LatLng(26.5100, 80.2300),
+                    point: _driverLocation,
                     width: 56, height: 56,
                     child: Container(
                       decoration: BoxDecoration(color: odogoGreen, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)),
@@ -115,7 +174,7 @@ class _DriverActivePickupScreenState extends State<DriverActivePickupScreen> {
                   ),
                   // Pickup Location
                   Marker(
-                    point: const LatLng(26.5140, 80.2340),
+                    point: _pickupLocation,
                     width: 40, height: 40,
                     child: const Icon(Icons.location_on, color: Colors.white, size: 40),
                   ),
@@ -164,7 +223,7 @@ class _DriverActivePickupScreenState extends State<DriverActivePickupScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(color: odogoGreen.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                        child: Text('3 mins', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
+                        child: Text('$_etaMinutesToPickup mins', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),

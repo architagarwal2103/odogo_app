@@ -1,16 +1,113 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'waiting_for_driver_screen.dart'; // Import the waiting screen!
 
-class TripConfirmationScreen extends StatelessWidget {
+class TripConfirmationScreen extends StatefulWidget {
   final String destination;
+  final String pickupLabel;
+  final LatLng? pickupPoint;
+  final LatLng? dropoffPoint;
 
   // We pass the searched destination into this screen so it dynamically updates
-  const TripConfirmationScreen({super.key, required this.destination});
+  const TripConfirmationScreen({
+    super.key,
+    required this.destination,
+    required this.pickupLabel,
+    this.pickupPoint,
+    this.dropoffPoint,
+  });
+
+  @override
+  State<TripConfirmationScreen> createState() => _TripConfirmationScreenState();
+}
+
+class _TripConfirmationScreenState extends State<TripConfirmationScreen> {
+  List<LatLng>? _routePoints;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoadRoute();
+  }
+
+  Future<void> _loadRoadRoute() async {
+    final pickup = widget.pickupPoint;
+    final dropoff = widget.dropoffPoint;
+    if (pickup == null || dropoff == null) return;
+
+    final uri = Uri.parse(
+      'https://router.project-osrm.org/route/v1/driving/'
+      '${pickup.longitude},${pickup.latitude};${dropoff.longitude},${dropoff.latitude}'
+      '?overview=full&geometries=geojson',
+    );
+
+    try {
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return;
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final routes = decoded['routes'];
+      if (routes is! List || routes.isEmpty) return;
+
+      final firstRoute = routes.first as Map<String, dynamic>;
+      final geometry = firstRoute['geometry'] as Map<String, dynamic>?;
+      final coordinates = geometry?['coordinates'];
+      if (coordinates is! List) return;
+
+      final points = <LatLng>[];
+      for (final item in coordinates) {
+        if (item is List && item.length >= 2) {
+          final lon = (item[0] as num).toDouble();
+          final lat = (item[1] as num).toDouble();
+          points.add(LatLng(lat, lon));
+        }
+      }
+
+      if (!mounted || points.length < 2) return;
+      setState(() {
+        _routePoints = points;
+      });
+    } catch (_) {
+      // Keep straight-line fallback when routing is unavailable.
+    }
+  }
+
+  CameraFit? _initialCameraFit() {
+    if (_routePoints != null && _routePoints!.length >= 2) {
+      return CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints(_routePoints!),
+        padding: const EdgeInsets.all(28),
+      );
+    }
+
+    if (widget.pickupPoint == null || widget.dropoffPoint == null) {
+      return null;
+    }
+
+    return CameraFit.bounds(
+      bounds: LatLngBounds.fromPoints([widget.pickupPoint!, widget.dropoffPoint!]),
+      padding: const EdgeInsets.all(28),
+    );
+  }
+
+  List<LatLng>? _polylinePoints() {
+    if (_routePoints != null && _routePoints!.length >= 2) {
+      return _routePoints;
+    }
+    if (widget.pickupPoint != null && widget.dropoffPoint != null) {
+      return [widget.pickupPoint!, widget.dropoffPoint!];
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final routePoints = _polylinePoints();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F6),
       appBar: AppBar(
@@ -32,31 +129,59 @@ class TripConfirmationScreen extends StatelessWidget {
             padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              // IgnorePointer prevents the user from panning this preview map
-              child: IgnorePointer(
-                child: FlutterMap(
-                  options: const MapOptions(
-                    initialCenter: LatLng(26.5123, 80.2329), // IIT Kanpur Coordinates
-                    initialZoom: 14.5,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.odogo_app',
-                      tileBuilder: (context, tileWidget, tile) {
-                        return ColorFiltered(
-                          colorFilter: const ColorFilter.matrix([
-                            -0.2126, -0.7152, -0.0722, 0, 255,
-                            -0.2126, -0.7152, -0.0722, 0, 255,
-                            -0.2126, -0.7152, -0.0722, 0, 255,
-                            0,       0,       0,       1, 0,
-                          ]),
-                          child: tileWidget,
-                        );
-                      },
-                    ),
-                  ],
+              child: FlutterMap(
+                key: ValueKey<int>(routePoints?.length ?? 0),
+                options: MapOptions(
+                  initialCenter: widget.pickupPoint ?? const LatLng(26.5123, 80.2329),
+                  initialZoom: 15,
+                  initialCameraFit: _initialCameraFit(),
                 ),
+                children: [
+                  TileLayer(
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    userAgentPackageName: 'com.example.odogo_app',
+                    tileBuilder: (context, tileWidget, tile) {
+                      return ColorFiltered(
+                        colorFilter: const ColorFilter.matrix([
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          -0.2126, -0.7152, -0.0722, 0, 255,
+                          0,       0,       0,       1, 0,
+                        ]),
+                        child: tileWidget,
+                      );
+                    },
+                  ),
+                  if (routePoints != null)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: routePoints,
+                          strokeWidth: 5,
+                          color: Colors.blue,
+                        ),
+                      ],
+                    ),
+                  if (widget.pickupPoint != null || widget.dropoffPoint != null)
+                    MarkerLayer(
+                      markers: [
+                        if (widget.pickupPoint != null)
+                          Marker(
+                            point: widget.pickupPoint!,
+                            width: 34,
+                            height: 34,
+                            child: const Icon(Icons.my_location, color: Color(0xFF66D2A3), size: 28),
+                          ),
+                        if (widget.dropoffPoint != null)
+                          Marker(
+                            point: widget.dropoffPoint!,
+                            width: 34,
+                            height: 34,
+                            child: const Icon(Icons.location_on, color: Colors.redAccent, size: 30),
+                          ),
+                      ],
+                    ),
+                ],
               ),
             ),
           ),
@@ -69,13 +194,13 @@ class TripConfirmationScreen extends StatelessWidget {
                 _buildLocationCard(
                   icon: Icons.location_on,
                   label: 'PICKUP',
-                  address: 'Current Location (e.g. Hall 12)',
+                  address: widget.pickupLabel,
                 ),
                 const SizedBox(height: 16),
                 _buildLocationCard(
                   icon: Icons.near_me,
                   label: 'DESTINATION',
-                  address: destination, // Dynamically uses what you searched!
+                  address: widget.destination, // Dynamically uses what you searched!
                 ),
                 const SizedBox(height: 24),
                 // _buildPriceCard(),

@@ -88,7 +88,7 @@ class _WaitingForDriverScreenState extends State<WaitingForDriverScreen> {
                   options: const MapOptions(
                     initialCenter: LatLng(26.5123, 80.2329), // IIT Kanpur Coordinates
                     initialZoom: 16.0,
-                    interactionOptions: InteractionOptions(flags: InteractiveFlag.none), // Lock the map while waiting
+                    interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
                   ),
                   children: [
                     TileLayer(

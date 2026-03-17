@@ -171,13 +171,88 @@ class _MapHomeViewState extends State<_MapHomeView> {
 
     FocusScope.of(context).unfocus(); 
 
-    // Pass the searched query into the confirmation screen!
+    final matchedDropoff = _resolveDropoffLocation(normalized);
+    _openTripConfirmation(
+      destinationName: normalized,
+      dropoff: matchedDropoff,
+    );
+  }
+
+  void _openTripConfirmation({
+    required String destinationName,
+    DropoffLocation? dropoff,
+  }) {
+    final pickupPoint = _currentLocation;
+    final dropoffPoint = dropoff == null
+        ? null
+        : LatLng(dropoff.latitude, dropoff.longitude);
+
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TripConfirmationScreen(destination: normalized),
+        builder: (context) => TripConfirmationScreen(
+          destination: destinationName,
+          pickupLabel: _buildPickupLabel(),
+          pickupPoint: pickupPoint,
+          dropoffPoint: dropoffPoint,
+        ),
       ),
     );
+  }
+
+  DropoffLocation? _resolveDropoffLocation(String query) {
+    final normalized = query.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+
+    for (final location in iitkDropoffLocations) {
+      if (location.name.toLowerCase() == normalized) {
+        return location;
+      }
+    }
+
+    for (final location in iitkDropoffLocations) {
+      if (location.matches(normalized)) {
+        return location;
+      }
+    }
+
+    return null;
+  }
+
+  String _buildPickupLabel() {
+    final nearest = _nearestCampusLocationName();
+    if (nearest == null) {
+      return 'Near your current location';
+    }
+    return 'Near $nearest';
+  }
+
+  String? _nearestCampusLocationName() {
+    final current = _currentLocation;
+    if (current == null || iitkDropoffLocations.isEmpty) return null;
+
+    DropoffLocation nearest = iitkDropoffLocations.first;
+    double nearestDistance = Geolocator.distanceBetween(
+      current.latitude,
+      current.longitude,
+      nearest.latitude,
+      nearest.longitude,
+    );
+
+    for (final location in iitkDropoffLocations.skip(1)) {
+      final distance = Geolocator.distanceBetween(
+        current.latitude,
+        current.longitude,
+        location.latitude,
+        location.longitude,
+      );
+      if (distance < nearestDistance) {
+        nearest = location;
+        nearestDistance = distance;
+      }
+    }
+
+    return nearest.name;
   }
 
   void _filterLocations(String query) {
@@ -197,7 +272,10 @@ class _MapHomeViewState extends State<_MapHomeView> {
     setState(() {
       _searchController.text = location.name;
     });
-    _handleSearch(location.name);
+    _openTripConfirmation(
+      destinationName: location.name,
+      dropoff: location,
+    );
   }
 
   @override

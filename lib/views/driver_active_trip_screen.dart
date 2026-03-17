@@ -3,7 +3,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 class DriverActiveTripScreen extends StatelessWidget {
-  const DriverActiveTripScreen({super.key});
+  final LatLng pickupLocation;
+
+  const DriverActiveTripScreen({
+    super.key,
+    this.pickupLocation = const LatLng(26.5140, 80.2340),
+  });
 
   final Color odogoGreen = const Color(0xFF66D2A3);
 
@@ -28,9 +33,16 @@ class DriverActiveTripScreen extends StatelessWidget {
         children: [
           // 1. Live Dark Map with Route to Destination
           FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(26.5130, 80.2335), // IIT Kanpur route center
+            options: MapOptions(
+              initialCenter: pickupLocation,
               initialZoom: 16.0,
+              initialCameraFit: CameraFit.bounds(
+                bounds: LatLngBounds.fromPoints([
+                  pickupLocation,
+                  const LatLng(26.5170, 80.2310),
+                ]),
+                padding: const EdgeInsets.all(28),
+              ),
             ),
             children: [
               TileLayer(
@@ -52,7 +64,11 @@ class DriverActiveTripScreen extends StatelessWidget {
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: const [LatLng(26.5140, 80.2340), LatLng(26.5150, 80.2320), LatLng(26.5170, 80.2310)],
+                    points: [
+                      pickupLocation,
+                      const LatLng(26.5150, 80.2320),
+                      const LatLng(26.5170, 80.2310),
+                    ],
                     color: odogoGreen,
                     strokeWidth: 5.0,
                   ),

@@ -1,10 +1,137 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'commuter_cancel_confirmation_screen.dart';
 
-class RideConfirmedScreen extends StatelessWidget {
+class RideConfirmedScreen extends StatefulWidget {
   const RideConfirmedScreen({super.key});
+
+  @override
+  State<RideConfirmedScreen> createState() => _RideConfirmedScreenState();
+}
+
+class _RideConfirmedScreenState extends State<RideConfirmedScreen> {
+  static const LatLng _fallbackCurrentLocation = LatLng(26.5123, 80.2329);
+  static const LatLng _driverLocation = LatLng(26.5150, 80.2300);
+  static const double _avgDriverSpeedMetersPerSecond = 4.5; // ~16.2 km/h
+  LatLng _currentLocation = _fallbackCurrentLocation;
+  List<LatLng>? _routePoints;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocationAndRoute();
+  }
+
+  Future<void> _loadCurrentLocationAndRoute() async {
+    await _setCurrentLocationFromDevice();
+    await _loadRoadRoute();
+  }
+
+  Future<void> _setCurrentLocationFromDevice() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (!mounted) return;
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled || !mounted) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+        _routePoints = null;
+      });
+    } catch (_) {
+      // Keep fallback location when GPS fetch fails.
+    }
+  }
+
+  Future<void> _loadRoadRoute() async {
+    final uri = Uri.parse(
+      'https://router.project-osrm.org/route/v1/driving/'
+      '${_driverLocation.longitude},${_driverLocation.latitude};'
+      '${_currentLocation.longitude},${_currentLocation.latitude}'
+      '?overview=full&geometries=geojson',
+    );
+
+    try {
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return;
+
+      final decoded = jsonDecode(response.body) as Map<String, dynamic>;
+      final routes = decoded['routes'];
+      if (routes is! List || routes.isEmpty) return;
+
+      final firstRoute = routes.first as Map<String, dynamic>;
+      final geometry = firstRoute['geometry'] as Map<String, dynamic>?;
+      final coordinates = geometry?['coordinates'];
+      if (coordinates is! List) return;
+
+      final points = <LatLng>[];
+      for (final item in coordinates) {
+        if (item is List && item.length >= 2) {
+          final lon = (item[0] as num).toDouble();
+          final lat = (item[1] as num).toDouble();
+          points.add(LatLng(lat, lon));
+        }
+      }
+
+      if (!mounted || points.length < 2) return;
+      setState(() {
+        _routePoints = points;
+      });
+    } catch (_) {
+      // Keep straight-line fallback when routing is unavailable.
+    }
+  }
+
+  CameraFit _initialCameraFit() {
+    if (_routePoints != null && _routePoints!.length >= 2) {
+      return CameraFit.bounds(
+        bounds: LatLngBounds.fromPoints(_routePoints!),
+        padding: const EdgeInsets.all(32),
+      );
+    }
+
+    return CameraFit.bounds(
+      bounds: LatLngBounds.fromPoints([_driverLocation, _currentLocation]),
+      padding: const EdgeInsets.all(32),
+    );
+  }
+
+  List<LatLng> _polylinePoints() {
+    if (_routePoints != null && _routePoints!.length >= 2) {
+      return _routePoints!;
+    }
+    return [_driverLocation, _currentLocation];
+  }
+
+  int get _etaMinutesToPickup {
+    final distanceMeters = Geolocator.distanceBetween(
+      _driverLocation.latitude,
+      _driverLocation.longitude,
+      _currentLocation.latitude,
+      _currentLocation.longitude,
+    );
+
+    final etaMinutes = (distanceMeters / _avgDriverSpeedMetersPerSecond / 60).ceil();
+    return etaMinutes < 1 ? 1 : etaMinutes;
+  }
 
   void _cancelTrip(BuildContext context) {
   // Navigate to the confirmation screen instead of instantly canceling
@@ -16,6 +143,10 @@ class RideConfirmedScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final routePoints = _polylinePoints();
+    final mapKey =
+        '${routePoints.length}-${_currentLocation.latitude.toStringAsFixed(5)}-${_currentLocation.longitude.toStringAsFixed(5)}';
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -23,9 +154,11 @@ class RideConfirmedScreen extends StatelessWidget {
           // 1. The Real Live Map Background
           Positioned.fill(
             child: FlutterMap(
-              options: const MapOptions(
-                initialCenter: LatLng(26.5123, 80.2329), // IIT Kanpur Coordinates
+              key: ValueKey<String>(mapKey),
+              options: MapOptions(
+                initialCenter: _currentLocation,
                 initialZoom: 16.0,
+                initialCameraFit: _initialCameraFit(),
                 interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
               ),
               children: [
@@ -44,16 +177,25 @@ class RideConfirmedScreen extends StatelessWidget {
                     );
                   },
                 ),
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: routePoints,
+                      strokeWidth: 5,
+                      color: Colors.blue,
+                    ),
+                  ],
+                ),
                 // Simulated markers for the user and the incoming Rickshaw
                 MarkerLayer(
                   markers: [
                     Marker(
-                      point: LatLng(26.5123, 80.2329),
-                      child: Icon(Icons.location_on, color: Color(0xFF66D2A3), size: 40),
+                      point: _currentLocation,
+                      child: const Icon(Icons.location_on, color: Color(0xFF66D2A3), size: 40),
                     ),
                     // The Incoming Rickshaw Marker
                     Marker(
-                      point: LatLng(26.5150, 80.2300), 
+                      point: _driverLocation, 
                       width: 150,
                       height: 150,
                       child: Image.asset(
@@ -130,10 +272,10 @@ class RideConfirmedScreen extends StatelessWidget {
                           color: Colors.black,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Column(
+                        child: Column(
                           children: [
-                            Text('3', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                            Text('MINS', style: TextStyle(color: Color(0xFF66D2A3), fontSize: 10, fontWeight: FontWeight.bold)),
+                            Text('$_etaMinutesToPickup', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                            const Text('MINS', style: TextStyle(color: Color(0xFF66D2A3), fontSize: 10, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
