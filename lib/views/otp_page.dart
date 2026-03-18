@@ -167,6 +167,7 @@ class _OtpPageState extends State<OtpPage> {
         ),
       ),
       body: SafeArea(
+        child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 40),
           child: Column(
@@ -251,6 +252,7 @@ class _OtpPageState extends State<OtpPage> {
               const Spacer(),
             ],
           ),
+        ),
         ),
       ),
     );
