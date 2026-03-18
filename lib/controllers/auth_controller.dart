@@ -180,4 +180,17 @@ class AuthController extends Notifier<AuthState> {
       state = AuthError("Failed to delete account: $e");
     }
   }
+
+  // Call this whenever the user updates their profile so the app's global state always has the freshest data.
+  Future<void> refreshUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedEmail = prefs.getString('odogo_user_email');
+    
+    if (savedEmail != null) {
+      final updatedUser = await _userRepo.getUserByEmail(savedEmail);
+      if (updatedUser != null) {
+        state = AuthAuthenticated(updatedUser);
+      }
+    }
+  }
 }

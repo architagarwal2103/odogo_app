@@ -1,22 +1,26 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:odogo_app/models/enums.dart';
+import 'package:odogo_app/models/vehicle_model.dart';
 
 class UserModel {
   final String userID;
   final String emailID;
+  final String name;
   final String phoneNo;
   final String gender;
   final Timestamp dob;
   final UserRole role;
+  final List<Timestamp>? cancelHistory; // stores the time stamps of the rides cancelled in last 15 mins
 
   // Commuter-specific fields
   final List<String>? savedLocations;
   final String? roomNo;
-  final int? numCancels;
 
   // Driver-specific fields
   final bool? verificationStatus;
-  final Map<String, String>? docPaths;
+  final String? aadharCard;
+  final String? license;
+  final VehicleModel? vehicle;
   final DriverMode? mode;
   final double? avgRating;
   final int? ratingCount;
@@ -24,15 +28,18 @@ class UserModel {
   UserModel({
     required this.userID,
     required this.emailID,
+    required this.name,
     required this.phoneNo,
     required this.gender,
     required this.dob,
     required this.role,
     this.savedLocations,
     this.roomNo,
-    this.numCancels,
+    this.cancelHistory,
     this.verificationStatus,
-    this.docPaths,
+    this.aadharCard,
+    this.license,
+    this.vehicle,
     this.mode,
     this.avgRating,
     this.ratingCount,
@@ -45,6 +52,7 @@ class UserModel {
     return UserModel(
       userID: json['userID'] ?? '',
       emailID: json['emailID'] ?? '',
+      name: json['name'] ?? '',
       phoneNo: json['phoneNo'] ?? '',
       gender: json['gender'] ?? '',
       dob: json['dob'] as Timestamp,
@@ -54,11 +62,13 @@ class UserModel {
       ),
       savedLocations: parsedLocations,
       roomNo: json['roomNo'],
-      numCancels: json['numCancels'],
-      verificationStatus: json['verificationStatus'],
-      docPaths: json['docPaths'] != null
-          ? Map<String, String>.from(json['docPaths'])
+      cancelHistory: json['cancelHistory'] != null 
+          ? List<Timestamp>.from(json['cancelHistory']) 
           : null,
+      verificationStatus: json['verificationStatus'],
+      aadharCard: json['aadharCard'],
+      license: json['license'],
+      vehicle: json['vehicle'] != null ? VehicleModel.fromJson(json['vehicle']) : null,
       mode: json['mode'] != null
           ? DriverMode.values.firstWhere((e) => e.name == json['mode'])
           : null,
@@ -71,15 +81,18 @@ class UserModel {
     return {
       'userID': userID,
       'emailID': emailID,
+      'name': name,
       'phoneNo': phoneNo,
       'gender': gender,
       'dob': dob,
       'role': role.name,
       if (savedLocations != null) 'savedLocations': savedLocations,
       if (roomNo != null) 'roomNo': roomNo,
-      if (numCancels != null) 'numCancels': numCancels,
+      if (cancelHistory != null) 'cancelHistory': cancelHistory,
       if (verificationStatus != null) 'verificationStatus': verificationStatus,
-      if (docPaths != null) 'docPaths': docPaths,
+      if (aadharCard != null) 'aadharCard': aadharCard,
+      if (license != null) 'license': license,
+      if (vehicle != null) 'vehicle': vehicle!.toJson(),
       if (mode != null) 'mode': mode!.name,
       if (avgRating != null) 'avgRating': avgRating,
       if (ratingCount != null) 'ratingCount': ratingCount,

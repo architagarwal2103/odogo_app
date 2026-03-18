@@ -361,7 +361,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
     // Why? Because router.dart is watching the state. The split second the
     // state becomes AuthAuthenticated, the router magically swoops in and
     // automatically transports the user to '/commuter-home' or '/driver-home'.
-  } // <-- Removed the extra brace that was right below this one!
+  }
 
   Future<void> _resendLink() async {
     setState(() {

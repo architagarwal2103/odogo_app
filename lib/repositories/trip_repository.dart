@@ -40,15 +40,12 @@ class TripRepository {
   }
 
   /// Driver: Accepts a trip or updates its status (e.g., pending -> ongoing -> completed).
-  Future<void> updateTripStatus({
-    required String tripID,
-    required String status,
-    String? driverID,
-  }) async {
-    Map<String, dynamic> updates = {'status': status};
-    if (driverID != null) {
-      updates['driverID'] = driverID;
+  /// Universal: Updates any specific fields on a trip document.
+  Future<void> updateTripData(String tripID, Map<String, dynamic> data) async {
+    try {
+      await _trips.doc(tripID).update(data);
+    } catch (e) {
+      throw Exception('Failed to update trip: $e');
     }
-    await _trips.doc(tripID).update(updates);
   }
 }

@@ -1,27 +1,31 @@
 class VehicleModel {
   final String registrationNum;
-  final String model;
-  final String driverID;
+  final String rcDoc;
+  final String pucDoc;
+  final String insuranceDoc;
 
   VehicleModel({
     required this.registrationNum,
-    required this.model,
-    required this.driverID,
+    required this.rcDoc,
+    required this.pucDoc,
+    required this.insuranceDoc,
   });
 
   factory VehicleModel.fromJson(Map<String, dynamic> json) {
     return VehicleModel(
       registrationNum: json['registrationNum'] ?? '',
-      model: json['model'] ?? '',
-      driverID: json['driverID'] ?? '',
+      rcDoc: json['rcDoc'] ?? '',
+      pucDoc: json['pucDoc'] ?? '',
+      insuranceDoc: json['insuranceDoc'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'registrationNum': registrationNum,
-      'model': model,
-      'driverID': driverID,
+      'rcDoc': rcDoc,
+      'pucDoc': pucDoc,
+      'insuranceDoc': insuranceDoc,
     };
   }
 }

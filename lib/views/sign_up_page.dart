@@ -103,9 +103,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
 
       // If it's a driver, default them to unverified initially
       verificationStatus: widget.isDriver ? false : null,
-
-      // Note: You gathered 'name' from the UI, but it's not in UserModel yet!
-      // Add `name: name,` here once you update your UserModel.
+      name: name,
     );
 
     // 3. Save to Firebase and update Riverpod State!
