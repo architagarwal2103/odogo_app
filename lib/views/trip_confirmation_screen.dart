@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 import 'waiting_for_driver_screen.dart'; // Import the waiting screen!
@@ -27,6 +28,7 @@ class TripConfirmationScreen extends StatefulWidget {
 
 class _TripConfirmationScreenState extends State<TripConfirmationScreen> {
   List<LatLng>? _routePoints;
+  static const double _minFitDistanceMeters = 5;
 
   @override
   void initState() {
@@ -78,6 +80,18 @@ class _TripConfirmationScreenState extends State<TripConfirmationScreen> {
 
   CameraFit? _initialCameraFit() {
     if (_routePoints != null && _routePoints!.length >= 2) {
+      final first = _routePoints!.first;
+      final last = _routePoints!.last;
+      final distanceMeters = Geolocator.distanceBetween(
+        first.latitude,
+        first.longitude,
+        last.latitude,
+        last.longitude,
+      );
+      if (distanceMeters < _minFitDistanceMeters) {
+        return null;
+      }
+
       return CameraFit.bounds(
         bounds: LatLngBounds.fromPoints(_routePoints!),
         padding: const EdgeInsets.all(40), // Added more padding so it doesn't hide behind the bottom sheet
@@ -85,6 +99,16 @@ class _TripConfirmationScreenState extends State<TripConfirmationScreen> {
     }
 
     if (widget.pickupPoint == null || widget.dropoffPoint == null) {
+      return null;
+    }
+
+    final distanceMeters = Geolocator.distanceBetween(
+      widget.pickupPoint!.latitude,
+      widget.pickupPoint!.longitude,
+      widget.dropoffPoint!.latitude,
+      widget.dropoffPoint!.longitude,
+    );
+    if (distanceMeters < _minFitDistanceMeters) {
       return null;
     }
 

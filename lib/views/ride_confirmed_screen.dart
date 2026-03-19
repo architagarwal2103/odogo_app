@@ -18,6 +18,7 @@ class _RideConfirmedScreenState extends State<RideConfirmedScreen> {
   static const LatLng _fallbackCurrentLocation = LatLng(26.5123, 80.2329);
   static const LatLng _driverLocation = LatLng(26.5150, 80.2300);
   static const double _avgDriverSpeedMetersPerSecond = 4.5; // ~16.2 km/h
+  static const double _minFitDistanceMeters = 5;
   LatLng _currentLocation = _fallbackCurrentLocation;
   List<LatLng>? _routePoints;
 
@@ -100,12 +101,34 @@ class _RideConfirmedScreenState extends State<RideConfirmedScreen> {
     }
   }
 
-  CameraFit _initialCameraFit() {
+  CameraFit? _initialCameraFit() {
     if (_routePoints != null && _routePoints!.length >= 2) {
+      final first = _routePoints!.first;
+      final last = _routePoints!.last;
+      final distanceMeters = Geolocator.distanceBetween(
+        first.latitude,
+        first.longitude,
+        last.latitude,
+        last.longitude,
+      );
+      if (distanceMeters < _minFitDistanceMeters) {
+        return null;
+      }
+
       return CameraFit.bounds(
         bounds: LatLngBounds.fromPoints(_routePoints!),
         padding: const EdgeInsets.all(32),
       );
+    }
+
+    final fallbackDistanceMeters = Geolocator.distanceBetween(
+      _driverLocation.latitude,
+      _driverLocation.longitude,
+      _currentLocation.latitude,
+      _currentLocation.longitude,
+    );
+    if (fallbackDistanceMeters < _minFitDistanceMeters) {
+      return null;
     }
 
     return CameraFit.bounds(
