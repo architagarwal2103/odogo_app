@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:odogo_app/controllers/trip_controller.dart';
+import 'package:odogo_app/models/enums.dart';
 import 'commuter_cancel_confirmation_screen.dart';
 import 'pickup_confirmed_screen.dart';
 
@@ -29,7 +31,6 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
   static const double _minFitDistanceMeters = 5;
   LatLng _currentLocation = _fallbackCurrentLocation;
   List<LatLng>? _routePoints;
-  Timer? _autoAdvanceTimer;
   late LatLng _dropoffLocation;
 
   @override
@@ -42,17 +43,6 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
     } else {
       _loadCurrentLocationAndRoute();
     }
-    // Auto-advance to pickup confirmed screen after 5 seconds (simulates driver entering OTP)
-    _autoAdvanceTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PickupConfirmedScreen(dropoffPoint: _dropoffLocation),
-          ),
-        );
-      }
-    });
   }
 
   Future<void> _loadCurrentLocationAndRoute() async {
@@ -193,12 +183,26 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
 
   @override
   void dispose() {
-    _autoAdvanceTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(activeTripStreamProvider(widget.tripID), (previous, next) {
+      final trip = next.value;
+      if (trip != null && trip.status == TripStatus.ongoing) { 
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PickupConfirmedScreen(dropoffPoint: _dropoffLocation),
+          ),
+        );
+      }
+    });
+
+    // 2. Watch the stream to build the UI
+    final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
+    final trip = activeTripAsync.value;
     final routePoints = _polylinePoints();
     final mapKey =
         '${routePoints.length}-${_currentLocation.latitude.toStringAsFixed(5)}-${_currentLocation.longitude.toStringAsFixed(5)}';
@@ -355,8 +359,8 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                           'PIN for this trip',
                           style: TextStyle(color: Colors.grey[800], fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                        const Text(
-                          '8403',
+                        Text(
+                          trip?.ridePIN ?? '----',
                           style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 6, color: Colors.black),
                         ),
                       ],
@@ -377,16 +381,16 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                         child: const Icon(Icons.person, size: 36, color: Color(0xFF66D2A3)),
                       ),
                       const SizedBox(width: 16),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Arman',
+                              trip?.driverName ?? '----',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                             ),
                             Text(
-                              'UP12 WA 9363 • E-Rickshaw',
+                              'To be extracted from doc somehow',
                               style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600),
                             ),
                           ],

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:odogo_app/controllers/trip_controller.dart';
 import 'driver_active_trip_screen.dart';
 import 'driver_cancel_confirmation_screen.dart'; 
 
@@ -39,18 +40,11 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
   // Focus nodes for the 4 PIN boxes
   final List<FocusNode> _focusNodes = List.generate(4, (index) => FocusNode());
   final List<TextEditingController> _controllers = List.generate(4, (index) => TextEditingController());
-  Timer? _autoAdvanceTimer;
 
   @override
   void initState() {
     super.initState();
     _initializeTripMap();
-    // Auto-advance to trip screen after 5 seconds for testing
-    _autoAdvanceTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) {
-        _verifyPinAndStartTrip();
-      }
-    });
   }
 
   Future<void> _initializeTripMap() async {
@@ -284,20 +278,25 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
 
   @override
   void dispose() {
-    _autoAdvanceTimer?.cancel();
     _driverLocationSubscription?.cancel();
     for (var node in _focusNodes) { node.dispose(); }
     for (var controller in _controllers) { controller.dispose(); }
     super.dispose();
   }
 
-  void _verifyPinAndStartTrip() {
-    String pin = _controllers.map((c) => c.text).join();
-    if (pin.length == 4) {
-      // Hide the keyboard
+  Future<void> _verifyPinAndStartTrip() async {
+    // 1. Grab the current trip data from the provider
+    final trip = ref.read(activeTripStreamProvider(widget.tripID)).value;
+    if (trip == null) return;
+
+    String enteredPin = _controllers.map((c) => c.text).join();
+    
+    // 2. Compare the entered PIN to the database PIN
+    if (enteredPin == trip.ridePIN) {
       FocusScope.of(context).unfocus();
 
-      // Navigate to the Active Trip Screen
+      await ref.read(tripControllerProvider.notifier).startRide(widget.tripID);
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -306,10 +305,17 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
           ),
         ),
       );
-    } else {
+    } else if (enteredPin.length < 4) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the 4-digit PIN.'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Please enter the full 4-digit PIN.'), backgroundColor: Colors.orange),
       );
+    } else {  // Wrong PIN
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Incorrect PIN. Please try again.'), backgroundColor: Colors.red),
+      );
+      // Automatically clear the boxes so they can try again
+      for (var controller in _controllers) { controller.clear(); }
+      FocusScope.of(context).requestFocus(_focusNodes[0]);
     }
   }
 
@@ -327,6 +333,10 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
 
   @override
   Widget build(BuildContext context) {
+    // Watch the database for this specific trip
+    final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
+    final trip = activeTripAsync.value;
+
     final polylinePoints = _polylinePoints;
     _measureBottomCardHeight();
 
@@ -471,15 +481,15 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
                     children: [
                       CircleAvatar(backgroundColor: Colors.grey[300], child: const Icon(Icons.person, color: Colors.grey)),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Arman', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 16)),
+                            Text(trip?.commuterName ?? '---', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black, fontSize: 16)),
                             SizedBox(height: 4),
                             Row(children: [
                               Icon(Icons.location_on, size: 14, color: Colors.grey),
-                              Text(' Pickup Location: OAT', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
+                              Text('Pickup: ${trip?.startLocName ?? '---'}', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600)),
                             ]),
                           ],
                         ),

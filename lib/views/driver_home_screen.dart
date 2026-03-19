@@ -375,7 +375,7 @@ void dispose() {
                       const SizedBox(height: 12),
                       // 3. Replaced hardcoded text with REAL database fields!
                       _buildMapInfoRow('Passenger:', incomingTrip.commuterName),
-                      _buildMapInfoRow('Location:', incomingTrip.startLocName),
+                      _buildMapInfoRow('Pickup:', incomingTrip.startLocName),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
