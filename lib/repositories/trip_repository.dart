@@ -17,7 +17,7 @@ class TripRepository {
   /// Driver: Streams all trips currently sitting in the 'pending' state.
   Stream<List<TripModel>> streamPendingTrips() {
     return _trips
-        .where('status', isEqualTo: 'pending')
+        .where('status', whereIn: ['pending', 'scheduled'])
         .snapshots()
         .map(
           (snapshot) => snapshot.docs

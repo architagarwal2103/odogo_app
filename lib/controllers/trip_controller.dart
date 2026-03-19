@@ -7,6 +7,11 @@ import '../repositories/trip_repository.dart';
 
 final tripRepositoryProvider = Provider((ref) => TripRepository());
 
+// We use this to constantly re-evaluate the scheduled ride time windows!
+final timeTickerProvider = StreamProvider<DateTime>((ref) {
+  return Stream.periodic(const Duration(seconds: 30), (_) => DateTime.now());
+});
+
 // Stream for Drivers to see available rides
 final pendingTripsProvider = StreamProvider<List<TripModel>>((ref) {
   final currentUser = ref.watch(currentUserProvider);
@@ -14,7 +19,38 @@ final pendingTripsProvider = StreamProvider<List<TripModel>>((ref) {
   if (currentUser?.mode == DriverMode.busy) {
     return Stream.value([]);
   }
-  return ref.watch(tripRepositoryProvider).streamPendingTrips();
+  // 1. Get the LIVE ticking time
+  final now = ref.watch(timeTickerProvider).value ?? DateTime.now();
+  final tripsStream = ref.watch(tripRepositoryProvider).streamPendingTrips();
+
+  //Old: return ref.watch(tripRepositoryProvider).streamPendingTrips();
+
+  // 3. Apply the Smart Filtering
+  return tripsStream.map((trips) {
+    return trips.where((trip) {
+      // Immediate rides are always visible
+      if (trip.status == TripStatus.pending) return true;
+
+      // Scheduled rides follow the exact broadcast rules
+      if (trip.status == TripStatus.scheduled && trip.scheduledTime != null) {
+        final scheduledTime = trip.scheduledTime!.toDate();
+        final diff = scheduledTime.difference(now);
+        final minutesLeft = diff.inMinutes;
+
+        // "inMinutes" truncates. So if diff is 120m 59s, it stays '120' for exactly 1 minute.
+        // This perfectly matches your "broadcast for 1 minute" requirement!
+        if (minutesLeft == 120) return true; // 2 hours prior
+        if (minutesLeft == 60) return true; // 1 hour prior
+        if (minutesLeft == 30) return true; // 30 mins prior
+
+        // Continuous broadcast starting 15 mins prior (up until 1 hr after in case of delays)
+        if (minutesLeft <= 15 && minutesLeft >= -60) return true;
+      }
+
+      // If it doesn't match the time windows, keep it hidden from the driver!
+      return false;
+    }).toList();
+  });
 });
 
 // Stream for Commuters to watch their specific active ride
@@ -80,9 +116,7 @@ class TripController extends Notifier<AsyncValue<void>> {
   Future<void> startRide(String tripID) async {
     state = const AsyncValue.loading();
     try {
-      await _repository.updateTripData(tripID, {
-        'status': 'ongoing',
-      });
+      await _repository.updateTripData(tripID, {'status': 'ongoing'});
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -97,7 +131,10 @@ class TripController extends Notifier<AsyncValue<void>> {
       if (currentUser == null) throw Exception("User not authenticated.");
 
       // 1. Fetch trip data FIRST to understand the current state
-      final tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripID).get();
+      final tripDoc = await FirebaseFirestore.instance
+          .collection('trips')
+          .doc(tripID)
+          .get();
       if (!tripDoc.exists) throw Exception("Trip not found");
       final tripData = tripDoc.data() as Map<String, dynamic>;
 
@@ -108,10 +145,10 @@ class TripController extends Notifier<AsyncValue<void>> {
 
       // 2. Determine if the strike constraint applies
       bool applyConstraint = true;
-      
+
       // RULE: Free cancellation for commuters if no driver has accepted yet
       if (isCommuterCancelling && !hasDriverAccepted) {
-        applyConstraint = false; 
+        applyConstraint = false;
       }
 
       final now = DateTime.now();
@@ -120,10 +157,12 @@ class TripController extends Notifier<AsyncValue<void>> {
       // 3. Enforce the 15-minute constraint if applicable
       if (applyConstraint) {
         final fifteenMinsAgo = now.subtract(const Duration(minutes: 15));
-        
-        recentCancels = currentUser.cancelHistory?.where((timestamp) {
-          return timestamp.toDate().isAfter(fifteenMinsAgo);
-        }).toList() ?? [];
+
+        recentCancels =
+            currentUser.cancelHistory?.where((timestamp) {
+              return timestamp.toDate().isAfter(fifteenMinsAgo);
+            }).toList() ??
+            [];
 
         if (recentCancels.length >= 2) {
           throw Exception("You can cancel a maximum of 2 rides in 15 minutes.");
@@ -136,14 +175,13 @@ class TripController extends Notifier<AsyncValue<void>> {
         // We set status back to pending and completely delete the driverID from the document.
         await _repository.updateTripData(tripID, {
           'status': TripStatus.pending.name,
-          'driverID': FieldValue.delete(), 
+          'driverID': FieldValue.delete(),
         });
 
         // Free up this driver so they can receive other broadcasts
         await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {
           'mode': DriverMode.online.name,
         });
-
       } else if (isCommuterCancelling) {
         // RULE: Commuter cancels. The trip is dead.
         await _repository.updateTripData(tripID, {
@@ -152,9 +190,10 @@ class TripController extends Notifier<AsyncValue<void>> {
 
         // If a driver was already attached to this doomed trip, free them up!
         if (hasDriverAccepted) {
-          await ref.read(userRepositoryProvider).updateUser(tripData['driverID'], {
-            'mode': DriverMode.online.name,
-          });
+          await ref.read(userRepositoryProvider).updateUser(
+            tripData['driverID'],
+            {'mode': DriverMode.online.name},
+          );
         }
       }
 
@@ -176,7 +215,10 @@ class TripController extends Notifier<AsyncValue<void>> {
   }
 
   /// User: Marks their side of the ride as complete
-  Future<void> completeRide({required String tripID, required bool isDriver}) async {
+  Future<void> completeRide({
+    required String tripID,
+    required bool isDriver,
+  }) async {
     state = const AsyncValue.loading();
     try {
       // Updates either 'driverEnd' or 'commuterEnd' to true based on who called it
@@ -184,9 +226,12 @@ class TripController extends Notifier<AsyncValue<void>> {
         isDriver ? 'driverEnd' : 'commuterEnd': true,
       });
       // RULE 3: Fetch the trip to check if BOTH parties have marked it as completed
-      final tripDoc = await FirebaseFirestore.instance.collection('trips').doc(tripID).get();
+      final tripDoc = await FirebaseFirestore.instance
+          .collection('trips')
+          .doc(tripID)
+          .get();
       final tripData = tripDoc.data() as Map<String, dynamic>;
-      
+
       final driverEnd = tripData['driverEnd'] ?? false;
       final commuterEnd = tripData['commuterEnd'] ?? false;
 
@@ -207,6 +252,18 @@ class TripController extends Notifier<AsyncValue<void>> {
 
       // Sync the state (especially critical if this user is the driver transitioning back to online)
       await ref.read(authControllerProvider.notifier).refreshUser();
+      state = const AsyncValue.data(null);
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+    }
+  }
+
+  //ScheduleRide Function
+  Future<void> scheduleRide(TripModel trip) async {
+    state = const AsyncValue.loading();
+    try {
+      // Saves the trip to Firestore exactly like a normal ride, but with the 'scheduled' status
+      await _repository.createTrip(trip);
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
