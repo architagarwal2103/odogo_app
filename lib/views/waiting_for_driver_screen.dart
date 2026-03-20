@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:odogo_app/controllers/trip_controller.dart';
 import 'package:odogo_app/models/enums.dart';
@@ -28,12 +29,36 @@ class WaitingForDriverScreen extends ConsumerStatefulWidget {
 class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen> {
   bool _isCancelling = false;
   late bool _wasDroppedByDriver; 
+  LatLng? _currentLocation;
 
   @override
   void initState() {
     super.initState();
     // Inherit the flag from the constructor when the screen builds
     _wasDroppedByDriver = widget.wasDropped; 
+    _loadCurrentLocation();
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (!mounted || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled || !mounted) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+      });
+    } catch (_) {}
   }
 
   Future<void> _cancelRide() async {
@@ -129,36 +154,52 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
           Expanded(
             child: Stack(
               children: [
-                FlutterMap(
-                  options: const MapOptions(
-                    initialCenter: LatLng(26.5123, 80.2329), 
-                    initialZoom: 16.0,
-                    interactionOptions: InteractionOptions(flags: InteractiveFlag.all),
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.odogo_app',
-                      tileBuilder: (context, tileWidget, tile) {
-                        return ColorFiltered(
-                          colorFilter: const ColorFilter.matrix([
-                            -0.2126, -0.7152, -0.0722, 0, 255,
-                            -0.2126, -0.7152, -0.0722, 0, 255,
-                            -0.2126, -0.7152, -0.0722, 0, 255,
-                            0,       0,       0,       1, 0,
-                          ]),
-                          child: tileWidget,
-                        );
-                      },
+                if (_currentLocation != null || widget.pickupPoint != null || widget.dropoffPoint != null)
+                  FlutterMap(
+                    options: MapOptions(
+                      initialCenter: _currentLocation ?? widget.pickupPoint ?? widget.dropoffPoint!,
+                      initialZoom: 16.0,
+                      interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
                     ),
-                  ],
-                ),
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: 40.0), 
-                    child: Icon(Icons.location_on, color: Color(0xFF66D2A3), size: 56),
-                  ),
-                ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.odogo_app',
+                        tileBuilder: (context, tileWidget, tile) {
+                          return ColorFiltered(
+                            colorFilter: const ColorFilter.matrix([
+                              -0.2126, -0.7152, -0.0722, 0, 255,
+                              -0.2126, -0.7152, -0.0722, 0, 255,
+                              -0.2126, -0.7152, -0.0722, 0, 255,
+                              0,       0,       0,       1, 0,
+                            ]),
+                            child: tileWidget,
+                          );
+                        },
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          if (_currentLocation != null)
+                            Marker(
+                              point: _currentLocation!,
+                              child: const Icon(Icons.my_location, color: Color(0xFF66D2A3), size: 40),
+                            ),
+                          if (widget.pickupPoint != null)
+                            Marker(
+                              point: widget.pickupPoint!,
+                              child: const Icon(Icons.location_on, color: Colors.white, size: 38),
+                            )
+                          else if (widget.dropoffPoint != null)
+                            Marker(
+                              point: widget.dropoffPoint!,
+                              child: const Icon(Icons.location_on, color: Colors.redAccent, size: 38),
+                            ),
+                        ],
+                      ),
+                    ],
+                  )
+                else
+                  const Center(child: CircularProgressIndicator(color: Color(0xFF66D2A3))),
               ],
             ),
           ),

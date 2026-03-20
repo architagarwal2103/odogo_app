@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/trip_controller.dart'; 
@@ -17,6 +18,35 @@ class CommuterCancelConfirmationScreen extends ConsumerStatefulWidget {
 class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCancelConfirmationScreen> {
   final Color odogoGreen = const Color(0xFF66D2A3);
   bool _isLoading = false;
+  LatLng? _currentLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocation();
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (!mounted || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled || !mounted) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+      });
+    } catch (_) {}
+  }
 
   Future<void> _confirmCancel() async {
     setState(() {
@@ -67,31 +97,34 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
       body: Stack(
         children: [
           // Live Dark Map Background
-          FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(26.5123, 80.2329),
-              initialZoom: 16.5,
-              interactionOptions: InteractionOptions(flags: InteractiveFlag.none),
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.odogo_app',
-                tileBuilder: (context, tileWidget, tile) {
-                  return ColorFiltered(
-                    colorFilter: const ColorFilter.matrix([
-                      -0.2126, -0.7152, -0.0722, 0, 255,
-                      -0.2126, -0.7152, -0.0722, 0, 255,
-                      -0.2126, -0.7152, -0.0722, 0, 255,
-                      0,       0,       0,       1, 0,
-                    ]),
-                    child: tileWidget,
-                  );
-                },
+          if (_currentLocation != null)
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: _currentLocation!,
+                initialZoom: 16.5,
+                interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
               ),
-              Container(color: Colors.black.withOpacity(0.6)), 
-            ],
-          ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.odogo_app',
+                  tileBuilder: (context, tileWidget, tile) {
+                    return ColorFiltered(
+                      colorFilter: const ColorFilter.matrix([
+                        -0.2126, -0.7152, -0.0722, 0, 255,
+                        -0.2126, -0.7152, -0.0722, 0, 255,
+                        -0.2126, -0.7152, -0.0722, 0, 255,
+                        0,       0,       0,       1, 0,
+                      ]),
+                      child: tileWidget,
+                    );
+                  },
+                ),
+                Container(color: Colors.black.withOpacity(0.6)),
+              ],
+            )
+          else
+            Container(color: Colors.black),
 
           // The Confirmation Card
           Align(

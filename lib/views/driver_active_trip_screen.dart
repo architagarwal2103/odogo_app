@@ -6,8 +6,13 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/controllers/telemetry_controller.dart';
 import 'package:odogo_app/controllers/trip_controller.dart';
+import 'package:odogo_app/data/iitk_dropoff_locations.dart';
+import 'package:odogo_app/models/driver_telemetry_model.dart';
 import 'package:odogo_app/models/enums.dart';
+import 'package:odogo_app/models/trip_model.dart';
 import 'package:odogo_app/services/contact_launcher_service.dart';
 import 'package:odogo_app/views/driver_home_screen.dart';
 
@@ -18,7 +23,7 @@ class DriverActiveTripScreen extends ConsumerStatefulWidget {
   const DriverActiveTripScreen({
     super.key,
     required this.tripID,
-    this.pickupLocation = const LatLng(26.5140, 80.2340),
+    required this.pickupLocation,
   });
 
   @override
@@ -26,16 +31,19 @@ class DriverActiveTripScreen extends ConsumerStatefulWidget {
 }
 
 class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen> {
-  static const LatLng _dropoffLocation = LatLng(26.5170, 80.2310);
+  static const LatLng _fallbackDropoffLocation = LatLng(26.5170, 80.2310);
   static const double _avgDriverSpeedMetersPerSecond = 4.5; // ~16.2 km/h
   static const double _minFitDistanceMeters = 5;
   static const double _routeRefreshThresholdMeters = 15;
+  static const double _destinationRefreshThresholdMeters = 5;
   final Color odogoGreen = const Color(0xFF66D2A3);
 
   late LatLng _driverLocation;
+  LatLng _dropoffLocation = _fallbackDropoffLocation;
   List<LatLng>? _routePoints;
   LatLng? _lastRouteOrigin;
   bool _isRouteLoading = false;
+  bool _dropoffResolvedFromTrip = false;
   StreamSubscription<Position>? _driverLocationSubscription;
   final GlobalKey _bottomCardKey = GlobalKey();
   double _bottomCardHeight = 0;
@@ -49,8 +57,41 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
 
   Future<void> _initializeTripMap() async {
     await _setInitialDriverLocation();
-    await _loadRoadRoute();
     await _startDriverLocationStream();
+    await _loadRoadRoute();
+  }
+
+  void _syncDropoffFromTrip(TripModel? trip) {
+    if (trip == null || _dropoffResolvedFromTrip) {
+      return;
+    }
+
+    final dropoffName = trip.endLocName;
+    if (dropoffName.isEmpty) return;
+
+    final mappedDropoff = DropoffLocation.fromName(dropoffName);
+    if (mappedDropoff == null) return;
+
+    final nextDropoff = LatLng(mappedDropoff.latitude, mappedDropoff.longitude);
+    final hasChanged = Geolocator.distanceBetween(
+          _dropoffLocation.latitude,
+          _dropoffLocation.longitude,
+          nextDropoff.latitude,
+          nextDropoff.longitude,
+        ) >
+        _destinationRefreshThresholdMeters;
+
+    if (!hasChanged) {
+      _dropoffResolvedFromTrip = true;
+      return;
+    }
+
+    setState(() {
+      _dropoffLocation = nextDropoff;
+      _routePoints = null;
+      _dropoffResolvedFromTrip = true;
+    });
+    _loadRoadRoute();
   }
 
   Future<void> _setInitialDriverLocation() async {
@@ -67,9 +108,24 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
       setState(() {
         _driverLocation = LatLng(position.latitude, position.longitude);
       });
+      await _broadcastDriverTelemetry(_driverLocation);
     } catch (_) {
       // Keep fallback/start point if location fetch fails.
     }
+  }
+
+  Future<void> _broadcastDriverTelemetry(LatLng location) async {
+    final driverID = ref.read(currentUserProvider)?.userID;
+    if (driverID == null || driverID.isEmpty) return;
+
+    await ref.read(telemetryControllerProvider).broadcastLocation(
+      DriverTelemetry(
+        driverID: driverID,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        timestampMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
   }
 
   Future<bool> _ensureLocationPermission() async {
@@ -114,6 +170,7 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
     setState(() {
       _driverLocation = location;
     });
+    _broadcastDriverTelemetry(location);
 
     final shouldRefreshRoute = _lastRouteOrigin == null ||
         Geolocator.distanceBetween(
@@ -272,6 +329,10 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
   @override
   void dispose() {
     _driverLocationSubscription?.cancel();
+    final driverID = ref.read(currentUserProvider)?.userID;
+    if (driverID != null && driverID.isNotEmpty) {
+      ref.read(telemetryControllerProvider).stopBroadcasting(driverID);
+    }
     super.dispose();
   }
 
@@ -296,6 +357,7 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
     });
     final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
     final trip = activeTripAsync.value;
+    _syncDropoffFromTrip(trip);
     final commuterInfoAsync = ref.watch(userInfoProvider(trip?.commuterID ?? ''));
     final commuterPhone = commuterInfoAsync.value?.phoneNo;
     final polylinePoints = _polylinePoints;

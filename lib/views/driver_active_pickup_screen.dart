@@ -8,7 +8,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/controllers/telemetry_controller.dart';
 import 'package:odogo_app/controllers/trip_controller.dart';
+import 'package:odogo_app/data/iitk_dropoff_locations.dart';
+import 'package:odogo_app/models/driver_telemetry_model.dart';
 import 'package:odogo_app/models/enums.dart';
 import 'package:odogo_app/models/trip_model.dart';
 import 'package:odogo_app/services/contact_launcher_service.dart';
@@ -32,11 +36,13 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
   static const double _avgDriverSpeedMetersPerSecond = 4.5; // ~16.2 km/h
   static const double _minFitDistanceMeters = 5;
   static const double _routeRefreshThresholdMeters = 15;
+  static const double _destinationRefreshThresholdMeters = 5;
   LatLng _driverLocation = _fallbackDriverLocation;
   LatLng _pickupLocation = _fallbackPickupLocation;
   List<LatLng>? _routePoints;
   LatLng? _lastRouteOrigin;
   bool _isRouteLoading = false;
+  bool _pickupResolvedFromTrip = false;
   StreamSubscription<Position>? _driverLocationSubscription;
   final GlobalKey _bottomCardKey = GlobalKey();
   double _bottomCardHeight = 0;
@@ -53,8 +59,8 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
 
   Future<void> _initializeTripMap() async {
     await _setInitialDriverLocation();
-    await _setPickupFromCurrentLocation();
     await _startDriverLocationStream();
+    await _loadRoadRoute();
   }
 
   Future<void> _setInitialDriverLocation() async {
@@ -71,31 +77,52 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
       setState(() {
         _driverLocation = LatLng(position.latitude, position.longitude);
       });
+      await _broadcastDriverTelemetry(_driverLocation);
     } catch (_) {
       // Keep fallback driver point if location fetch fails.
     }
   }
 
-  Future<void> _setPickupFromCurrentLocation() async {
-    final hasPermission = await _ensureLocationPermission();
-    if (!mounted || !hasPermission) {
+  Future<void> _broadcastDriverTelemetry(LatLng location) async {
+    final driverID = ref.read(currentUserProvider)?.userID;
+    if (driverID == null || driverID.isEmpty) return;
+
+    await ref.read(telemetryControllerProvider).broadcastLocation(
+      DriverTelemetry(
+        driverID: driverID,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        timestampMs: DateTime.now().millisecondsSinceEpoch,
+      ),
+    );
+  }
+
+  void _syncPickupFromTrip(TripModel? trip) {
+    if (trip == null || _pickupResolvedFromTrip) return;
+
+    final mappedPickup = DropoffLocation.fromName(trip.startLocName);
+    if (mappedPickup == null) return;
+
+    final nextPickup = LatLng(mappedPickup.latitude, mappedPickup.longitude);
+    final hasChanged = Geolocator.distanceBetween(
+          _pickupLocation.latitude,
+          _pickupLocation.longitude,
+          nextPickup.latitude,
+          nextPickup.longitude,
+        ) >
+        _destinationRefreshThresholdMeters;
+
+    if (!hasChanged) {
+      _pickupResolvedFromTrip = true;
       return;
     }
 
-    try {
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-      if (!mounted) return;
-      setState(() {
-        _pickupLocation = LatLng(position.latitude, position.longitude);
-        _routePoints = null;
-      });
-      await _loadRoadRoute();
-    } catch (_) {
-      // Keep fallback pickup point if location fetch fails.
-      await _loadRoadRoute();
-    }
+    setState(() {
+      _pickupLocation = nextPickup;
+      _routePoints = null;
+      _pickupResolvedFromTrip = true;
+    });
+    _loadRoadRoute();
   }
 
   Future<bool> _ensureLocationPermission() async {
@@ -140,6 +167,7 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
     setState(() {
       _driverLocation = location;
     });
+    _broadcastDriverTelemetry(location);
 
     final shouldRefreshRoute = _lastRouteOrigin == null ||
         Geolocator.distanceBetween(
@@ -283,6 +311,10 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
   @override
   void dispose() {
     _driverLocationSubscription?.cancel();
+    final driverID = ref.read(currentUserProvider)?.userID;
+    if (driverID != null && driverID.isNotEmpty) {
+      ref.read(telemetryControllerProvider).stopBroadcasting(driverID);
+    }
     for (var node in _focusNodes) { node.dispose(); }
     for (var controller in _controllers) { controller.dispose(); }
     super.dispose();
@@ -345,6 +377,7 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
     // Watch the database for this specific trip
     final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
     final trip = activeTripAsync.value;
+    _syncPickupFromTrip(trip);
     final commuterInfoAsync = ref.watch(userInfoProvider(trip?.commuterID ?? ''));
     final commuterPhone = commuterInfoAsync.value?.phoneNo;
 

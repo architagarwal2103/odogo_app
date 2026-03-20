@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
+import 'package:odogo_app/controllers/telemetry_controller.dart';
 import 'package:odogo_app/controllers/trip_controller.dart';
+import 'package:odogo_app/data/iitk_dropoff_locations.dart';
 import 'package:odogo_app/models/enums.dart';
 import 'package:odogo_app/services/contact_launcher_service.dart';
 
@@ -28,24 +30,24 @@ class RideConfirmedScreen extends ConsumerStatefulWidget {
 
 class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
   static const LatLng _fallbackCurrentLocation = LatLng(26.5123, 80.2329);
-  static const LatLng _driverLocation = LatLng(26.5150, 80.2300);
+  static const LatLng _fallbackDriverLocation = LatLng(26.5150, 80.2300);
   static const LatLng _fallbackDropoffLocation = LatLng(26.5170, 80.2310);
   static const double _avgDriverSpeedMetersPerSecond = 4.5; // ~16.2 km/h
   static const double _minFitDistanceMeters = 5;
-  LatLng _currentLocation = _fallbackCurrentLocation;
+  static const double _destinationRefreshThresholdMeters = 5;
+  static const double _driverUpdateThresholdMeters = 3;
+  LatLng _pickupLocation = _fallbackCurrentLocation;
+  LatLng _driverLocation = _fallbackDriverLocation;
   List<LatLng>? _routePoints;
+  bool _pickupResolvedFromTrip = false;
   late LatLng _dropoffLocation;
 
   @override
   void initState() {
     super.initState();
     _dropoffLocation = widget.dropoffPoint ?? _fallbackDropoffLocation;
-    if (widget.pickupPoint != null) {
-      _currentLocation = widget.pickupPoint!;
-      _loadRoadRoute();
-    } else {
-      _loadCurrentLocationAndRoute();
-    }
+    _pickupLocation = widget.pickupPoint ?? _fallbackCurrentLocation;
+    _loadCurrentLocationAndRoute();
   }
 
   Future<void> _loadCurrentLocationAndRoute() async {
@@ -74,7 +76,9 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
       );
       if (!mounted) return;
       setState(() {
-        _currentLocation = LatLng(position.latitude, position.longitude);
+        if (widget.pickupPoint == null) {
+          _pickupLocation = LatLng(position.latitude, position.longitude);
+        }
         _routePoints = null;
       });
     } catch (_) {}
@@ -84,7 +88,7 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
     final uri = Uri.parse(
       'https://router.project-osrm.org/route/v1/driving/'
       '${_driverLocation.longitude},${_driverLocation.latitude};'
-      '${_currentLocation.longitude},${_currentLocation.latitude}'
+      '${_pickupLocation.longitude},${_pickupLocation.latitude}'
       '?overview=full&geometries=geojson',
     );
 
@@ -140,15 +144,15 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
     final fallbackDistanceMeters = Geolocator.distanceBetween(
       _driverLocation.latitude,
       _driverLocation.longitude,
-      _currentLocation.latitude,
-      _currentLocation.longitude,
+      _pickupLocation.latitude,
+      _pickupLocation.longitude,
     );
     if (fallbackDistanceMeters < _minFitDistanceMeters) {
       return null;
     }
 
     return CameraFit.bounds(
-      bounds: LatLngBounds.fromPoints([_driverLocation, _currentLocation]),
+      bounds: LatLngBounds.fromPoints([_driverLocation, _pickupLocation]),
       padding: const EdgeInsets.all(32),
     );
   }
@@ -157,15 +161,15 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
     if (_routePoints != null && _routePoints!.length >= 2) {
       return _routePoints!;
     }
-    return [_driverLocation, _currentLocation];
+    return [_driverLocation, _pickupLocation];
   }
 
   int get _etaMinutesToPickup {
     final distanceMeters = Geolocator.distanceBetween(
       _driverLocation.latitude,
       _driverLocation.longitude,
-      _currentLocation.latitude,
-      _currentLocation.longitude,
+      _pickupLocation.latitude,
+      _pickupLocation.longitude,
     );
 
     final etaMinutes = (distanceMeters / _avgDriverSpeedMetersPerSecond / 60).ceil();
@@ -178,6 +182,54 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
       context,
       MaterialPageRoute(builder: (context) => CommuterCancelConfirmationScreen(tripID: widget.tripID)),
     );
+  }
+
+  void _syncPickupFromTripName(String? pickupName) {
+    if (pickupName == null || pickupName.isEmpty || _pickupResolvedFromTrip) {
+      return;
+    }
+
+    final mappedPickup = DropoffLocation.fromName(pickupName);
+    if (mappedPickup == null) return;
+
+    final nextPickup = LatLng(mappedPickup.latitude, mappedPickup.longitude);
+    final hasChanged = Geolocator.distanceBetween(
+          _pickupLocation.latitude,
+          _pickupLocation.longitude,
+          nextPickup.latitude,
+          nextPickup.longitude,
+        ) >
+        _destinationRefreshThresholdMeters;
+
+    if (!hasChanged) {
+      _pickupResolvedFromTrip = true;
+      return;
+    }
+
+    setState(() {
+      _pickupLocation = nextPickup;
+      _routePoints = null;
+      _pickupResolvedFromTrip = true;
+    });
+    _loadRoadRoute();
+  }
+
+  void _syncDriverLocationFromTelemetry(double? lat, double? lng) {
+    if (lat == null || lng == null) return;
+    final nextLocation = LatLng(lat, lng);
+    final moved = Geolocator.distanceBetween(
+      _driverLocation.latitude,
+      _driverLocation.longitude,
+      nextLocation.latitude,
+      nextLocation.longitude,
+    );
+    if (moved < _driverUpdateThresholdMeters) return;
+
+    setState(() {
+      _driverLocation = nextLocation;
+      _routePoints = null;
+    });
+    _loadRoadRoute();
   }
 
   @override
@@ -227,10 +279,16 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
 
     final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
     final trip = activeTripAsync.value;
+    _syncPickupFromTripName(trip?.startLocName);
+    final driverTelemetryAsync = ref.watch(driverLocationProvider(trip?.driverID ?? ''));
+    _syncDriverLocationFromTelemetry(
+      driverTelemetryAsync.value?.latitude,
+      driverTelemetryAsync.value?.longitude,
+    );
     final driverInfoAsync = ref.watch(userInfoProvider(trip?.driverID ?? ''));
     final driverPhone = driverInfoAsync.value?.phoneNo;
     final routePoints = _polylinePoints();
-    final mapKey = '${routePoints.length}-${_currentLocation.latitude.toStringAsFixed(5)}-${_currentLocation.longitude.toStringAsFixed(5)}';
+    final mapKey = '${routePoints.length}-${_driverLocation.latitude.toStringAsFixed(5)}-${_driverLocation.longitude.toStringAsFixed(5)}';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -241,7 +299,7 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
             child: FlutterMap(
               key: ValueKey<String>(mapKey),
               options: MapOptions(
-                initialCenter: _currentLocation,
+                initialCenter: _pickupLocation,
                 initialZoom: 16.0,
                 initialCameraFit: _initialCameraFit(),
                 interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
@@ -274,17 +332,18 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                 MarkerLayer(
                   markers: [
                     Marker(
-                      point: _currentLocation,
+                      point: _pickupLocation,
                       child: const Icon(Icons.location_on, color: Color(0xFF66D2A3), size: 40),
                     ),
                     Marker(
-                      point: _driverLocation, 
+                      point: _driverLocation,
                       width: 150,
                       height: 150,
                       child: Image.asset(
-                        'assets/images/odogo_logo_without_bg.png', 
+                        'assets/images/odogo_logo_without_bg.png',
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.electric_rickshaw, color: Color(0xFF66D2A3), size: 40),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.electric_rickshaw, color: Color(0xFF66D2A3), size: 40),
                       ),
                     ),
                   ],

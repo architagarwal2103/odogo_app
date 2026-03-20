@@ -551,7 +551,7 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
                             ),
 
                             subtitle: Text(
-                              homeAddress!,
+                              homeAddress,
                               style: const TextStyle(color: Colors.grey),
                             ),
 
@@ -572,7 +572,7 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
                             ),
 
                             subtitle: Text(
-                              workAddress!,
+                              workAddress,
                               style: const TextStyle(color: Colors.grey),
                             ),
 

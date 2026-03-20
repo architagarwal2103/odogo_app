@@ -1,57 +1,106 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:odogo_app/controllers/trip_controller.dart';
+import 'package:odogo_app/data/iitk_dropoff_locations.dart';
 import 'package:odogo_app/services/contact_launcher_service.dart';
 
-class TripEndRequestScreen extends ConsumerWidget {
+class TripEndRequestScreen extends ConsumerStatefulWidget {
   final String tripID;
 
   const TripEndRequestScreen({super.key, required this.tripID});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final activeTripAsync = ref.watch(activeTripStreamProvider(tripID));
+  ConsumerState<TripEndRequestScreen> createState() => _TripEndRequestScreenState();
+}
+
+class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
+  LatLng? _currentLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentLocation();
+  }
+
+  Future<void> _loadCurrentLocation() async {
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (!mounted || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+      return;
+    }
+
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled || !mounted) return;
+
+    try {
+      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      if (!mounted) return;
+      setState(() {
+        _currentLocation = LatLng(position.latitude, position.longitude);
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
     final trip = activeTripAsync.value;
     final driverInfoAsync = ref.watch(userInfoProvider(trip?.driverID ?? ''));
     final driverPhone = driverInfoAsync.value?.phoneNo;
+    final dropoffFromTrip = trip == null ? null : DropoffLocation.fromName(trip.endLocName);
+    final dropoffPoint = dropoffFromTrip == null ? null : LatLng(dropoffFromTrip.latitude, dropoffFromTrip.longitude);
+    final mapCenter = _currentLocation ?? dropoffPoint;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
           // 1. Functional Dark Map
-          FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(26.5123, 80.2329), // Drop-off location
-              initialZoom: 16.5,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.odogo_app',
-                tileBuilder: (context, tileWidget, tile) {
-                  return ColorFiltered(
-                    colorFilter: const ColorFilter.matrix([
-                      -0.2126, -0.7152, -0.0722, 0, 255,
-                      -0.2126, -0.7152, -0.0722, 0, 255,
-                      -0.2126, -0.7152, -0.0722, 0, 255,
-                      0,       0,       0,       1, 0,
-                    ]),
-                    child: tileWidget,
-                  );
-                },
+          if (mapCenter != null)
+            FlutterMap(
+              options: MapOptions(
+                initialCenter: mapCenter,
+                initialZoom: 16.5,
               ),
-              const MarkerLayer(
-                markers: [
-                  Marker(
-                    point: LatLng(26.5123, 80.2329),
-                    child: Icon(Icons.location_on, color: Color(0xFF66D2A3), size: 45),
-                  ),
-                ],
-              ),
-            ],
-          ),
+              children: [
+                TileLayer(
+                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.example.odogo_app',
+                  tileBuilder: (context, tileWidget, tile) {
+                    return ColorFiltered(
+                      colorFilter: const ColorFilter.matrix([
+                        -0.2126, -0.7152, -0.0722, 0, 255,
+                        -0.2126, -0.7152, -0.0722, 0, 255,
+                        -0.2126, -0.7152, -0.0722, 0, 255,
+                        0,       0,       0,       1, 0,
+                      ]),
+                      child: tileWidget,
+                    );
+                  },
+                ),
+                MarkerLayer(
+                  markers: [
+                    if (_currentLocation != null)
+                      Marker(
+                        point: _currentLocation!,
+                        child: const Icon(Icons.my_location, color: Color(0xFF66D2A3), size: 36),
+                      ),
+                    if (dropoffPoint != null)
+                      Marker(
+                        point: dropoffPoint,
+                        child: const Icon(Icons.location_on, color: Colors.redAccent, size: 42),
+                      ),
+                  ],
+                ),
+              ],
+            )
+          else
+            const Center(child: CircularProgressIndicator(color: Color(0xFF66D2A3))),
 
           // 2. Synced OdoGo Logo Header
           SafeArea(
@@ -121,7 +170,7 @@ class TripEndRequestScreen extends ConsumerWidget {
                     child: ElevatedButton(
                       onPressed: () async {
                         await ref.read(tripControllerProvider.notifier).completeRide(
-                          tripID: tripID,
+                          tripID: widget.tripID,
                           isDriver: false, 
                         );
                         if (context.mounted) {
