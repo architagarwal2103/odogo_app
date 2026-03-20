@@ -67,11 +67,11 @@ class UserController extends Notifier<AsyncValue<void>> {
     }
   }
 
-  /// Example: Updating the commuter's room number
-  Future<void> updateRoomNumber(String room) async {
+  /// Example: Updating the commuter's home address
+  Future<void> updateHome(String home) async {
     state = const AsyncValue.loading();
     try {
-      await _repository.updateUser(_getUid(), {'roomNo': room});
+      await _repository.updateUser(_getUid(), {'home': home});
       await ref.read(authControllerProvider.notifier).refreshUser();
       state = const AsyncValue.data(null);
     } catch (e, st) {

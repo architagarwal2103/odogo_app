@@ -532,9 +532,9 @@ class DriverBookingCard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        // Displaying the pickup location or room number as Address
+                        // Displaying the pickup location or home as Address
                         Text(
-                          'Address- ${commuterInfo?.roomNo ?? trip.startLocName}',
+                          'Address- ${commuterInfo?.home ?? trip.startLocName}',
                           style: const TextStyle(
                             color: Colors.black,
                             fontSize: 14,

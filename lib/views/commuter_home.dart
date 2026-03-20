@@ -453,8 +453,8 @@ class _MapHomeViewState extends ConsumerState<_MapHomeView>
     String localSearchText = '';
 
     final user = ref.read(currentUserProvider);
-    final homeAddress = (user?.roomNo != null && user!.roomNo!.isNotEmpty)
-        ? user.roomNo
+    final homeAddress = (user?.home != null && user!.home!.isNotEmpty)
+        ? user.home
         : null;
     final workAddress =
         (user?.savedLocations != null &&
@@ -686,8 +686,8 @@ class _MapHomeViewState extends ConsumerState<_MapHomeView>
     String localSearchText = '';
 
     final user = ref.read(currentUserProvider);
-    final homeAddress = (user?.roomNo != null && user!.roomNo!.isNotEmpty)
-        ? user.roomNo
+    final homeAddress = (user?.home != null && user!.home!.isNotEmpty)
+        ? user.home
         : null;
     final workAddress =
         (user?.savedLocations != null &&

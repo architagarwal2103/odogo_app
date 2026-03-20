@@ -127,8 +127,8 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
   void initState() {
     super.initState();
     final user = ref.read(currentUserProvider);
-    if (user != null && user.roomNo != null) {
-      _addressController.text = user.roomNo!;
+    if (user != null && user.home != null) {
+      _addressController.text = user.home!;
     }
   }
 
@@ -152,7 +152,7 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
     setState(() => _isLoading = true);
     await ref
         .read(userControllerProvider.notifier)
-        .updateRoomNumber(_addressController.text.trim());
+        .updateHome(_addressController.text.trim());
         
     if (!mounted) return;
     

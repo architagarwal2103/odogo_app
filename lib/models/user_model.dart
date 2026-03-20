@@ -10,12 +10,11 @@ class UserModel {
   final String gender;
   final Timestamp dob;
   final UserRole role;
-  final List<Timestamp>?
-  cancelHistory; // stores the time stamps of the rides cancelled in last 15 mins
+  final List<Timestamp>? cancelHistory; // stores the time stamps of the rides cancelled in last 15 mins
 
   // Commuter-specific fields
   final List<String>? savedLocations;
-  final String? roomNo;
+  final String? home;
 
   // Driver-specific fields
   final bool? verificationStatus;
@@ -35,7 +34,7 @@ class UserModel {
     required this.dob,
     required this.role,
     this.savedLocations,
-    this.roomNo,
+    this.home,
     this.cancelHistory,
     this.verificationStatus,
     this.aadharCard,
@@ -62,7 +61,7 @@ class UserModel {
         orElse: () => UserRole.commuter,
       ),
       savedLocations: parsedLocations,
-      roomNo: json['roomNo'],
+      home: json['home'],
       cancelHistory: json['cancelHistory'] != null
           ? List<Timestamp>.from(json['cancelHistory'])
           : null,
@@ -90,7 +89,7 @@ class UserModel {
       'dob': dob,
       'role': role.name,
       if (savedLocations != null) 'savedLocations': savedLocations,
-      if (roomNo != null) 'roomNo': roomNo,
+      if (home != null) 'home': home,
       if (cancelHistory != null) 'cancelHistory': cancelHistory,
       if (verificationStatus != null) 'verificationStatus': verificationStatus,
       if (aadharCard != null) 'aadharCard': aadharCard,

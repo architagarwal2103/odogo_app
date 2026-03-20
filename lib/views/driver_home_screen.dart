@@ -151,7 +151,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       return DateTime.fromMillisecondsSinceEpoch(tripIdAsEpoch);
     }
     if (trip.scheduledTime != null) {
-      return trip.scheduledTime!.toDate();
+      return trip.scheduledTime!;
     }
     return DateTime.fromMillisecondsSinceEpoch(8640000000000000);
   }

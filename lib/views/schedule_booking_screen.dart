@@ -423,8 +423,8 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
 
     final user = ref.read(currentUserProvider);
 
-    final homeAddress = (user?.roomNo != null && user!.roomNo!.isNotEmpty)
-        ? user.roomNo
+    final homeAddress = (user?.home != null && user!.home!.isNotEmpty)
+        ? user.home
         : null;
 
     final workAddress =
