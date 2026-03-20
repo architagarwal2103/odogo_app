@@ -12,6 +12,7 @@ import 'package:go_router/go_router.dart';
 import 'package:odogo_app/controllers/trip_controller.dart';
 import 'package:odogo_app/models/enums.dart';
 import 'package:odogo_app/models/trip_model.dart';
+import 'package:odogo_app/views/driver_home_screen.dart';
 import 'driver_active_trip_screen.dart';
 import 'driver_cancel_confirmation_screen.dart';
 
@@ -363,31 +364,35 @@ class _DriverActivePickupScreenState extends ConsumerState<DriverActivePickupScr
             ),
           );
           Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              context.go('/driver-home');
-            }
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const DriverHomeScreen(), // Make sure this matches your home screen import
+              ),
+              (route) => false, // This destroys the dead trip screen so they can't swipe back to it
+            );
           });
         }
       }
 
-      if (currentTrip != null &&
-          currentTrip.status == TripStatus.pending &&
-          prevTrip?.status == TripStatus.confirmed) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Trip dropped; searching for another ride...'),
-              backgroundColor: Colors.orange,
-              duration: Duration(seconds: 2),
-            ),
-          );
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              context.go('/driver-home');
-            }
-          });
-        }
-      }
+      // if (currentTrip != null &&
+      //     currentTrip.status == TripStatus.pending &&
+      //     prevTrip?.status == TripStatus.confirmed) {
+      //   if (mounted) {
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       const SnackBar(
+      //         content: Text('Trip dropped; searching for another ride...'),
+      //         backgroundColor: Colors.orange,
+      //         duration: Duration(seconds: 2),
+      //       ),
+      //     );
+      //     Future.delayed(const Duration(milliseconds: 500), () {
+      //       if (mounted) {
+      //         context.go('/driver-home');
+      //       }
+      //     });
+      //   }
+      // }
     });
 
     final polylinePoints = _polylinePoints;

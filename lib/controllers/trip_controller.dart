@@ -246,7 +246,6 @@ class TripController extends Notifier<AsyncValue<void>> {
       }
 
       // 4. Execute the specific cancellation logic based on WHO is cancelling
-      // 4. Execute the specific cancellation logic based on WHO is cancelling
       if (isDriverCancelling) {
         // RULE: Driver cancels. Re-broadcast the trip!
         await _repository.updateTripData(tripID, {
@@ -290,6 +289,7 @@ class TripController extends Notifier<AsyncValue<void>> {
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
+      rethrow;
     }
   }
 

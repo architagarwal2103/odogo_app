@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart'; // ADDED: Required to safely route using context.go
+import 'package:odogo_app/views/driver_home_screen.dart';
 import '../controllers/trip_controller.dart'; 
 
 class DriverCancelConfirmationScreen extends ConsumerStatefulWidget {
@@ -38,9 +38,13 @@ class _DriverCancelConfirmationScreenState extends ConsumerState<DriverCancelCon
         ),
       );
 
-      // 3. NUCLEAR ROUTING FIX (GoRouter Safe): 
-      // This safely tells GoRouter to wipe the current flow and route to the home dashboard.
-      context.go('/driver-home');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const DriverHomeScreen(), // Make sure this matches your home screen import
+        ),
+        (route) => false, // This destroys the dead trip screen so they can't swipe back to it
+      );
 
     } catch (e) {
       if (!mounted) return;
