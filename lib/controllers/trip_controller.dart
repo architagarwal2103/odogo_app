@@ -132,8 +132,9 @@ class TripController extends Notifier<AsyncValue<void>> {
   Future<void> acceptRide(
     String tripID,
     String driverName,
-    String driverID,
-  ) async {
+    String driverID, {
+    bool isScheduled = false,
+  }) async {
     state = const AsyncValue.loading();
     try {
       print('DEBUG: acceptRide called for tripID=$tripID, driverID=$driverID');
@@ -154,7 +155,9 @@ class TripController extends Notifier<AsyncValue<void>> {
             (currentStatus == TripStatus.pending.name ||
                 currentStatus == TripStatus.scheduled.name)) {
           tx.update(docRef, {
-            'status': TripStatus.confirmed.name,
+            'status': isScheduled
+                ? TripStatus.scheduled.name
+                : TripStatus.confirmed.name,
             'driverName': driverName,
             'driverID': driverID,
           });
@@ -185,6 +188,16 @@ class TripController extends Notifier<AsyncValue<void>> {
       print('DEBUG: acceptRide error: $e');
       print('DEBUG: Stack trace: $st');
       state = AsyncValue.error(e, st);
+    }
+  }
+
+  Future<void> confirmScheduledRide(String tripID) async {
+    try {
+      await _repository.updateTripData(tripID, {
+        'status': TripStatus.confirmed.name,
+      });
+    } catch (e) {
+      print(e);
     }
   }
 
@@ -327,11 +340,11 @@ class TripController extends Notifier<AsyncValue<void>> {
         }
 
         // Trigger Background Cleanup ---
-      //   final commuterID = tripData['commuterID'];
-      //   if (commuterID != null)
-      //     _repository.cleanupOldTrips(commuterID, 'commuterID');
-      //   if (assignedDriverID != null)
-      //     _repository.cleanupOldTrips(assignedDriverID, 'driverID');
+        //   final commuterID = tripData['commuterID'];
+        //   if (commuterID != null)
+        //     _repository.cleanupOldTrips(commuterID, 'commuterID');
+        //   if (assignedDriverID != null)
+        //     _repository.cleanupOldTrips(assignedDriverID, 'driverID');
       }
 
       // Sync the state (especially critical if this user is the driver transitioning back to online)

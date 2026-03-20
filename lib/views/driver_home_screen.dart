@@ -20,6 +20,8 @@ import 'package:odogo_app/models/trip_model.dart';
 
 import 'dart:async';
 
+import '../services/notification_permission_service.dart';
+
 // 1. LINKING THE PROFILE & BOOKINGS PAGES
 
 import 'driver_profile_screen.dart';
@@ -239,6 +241,64 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   @override // Removed the duplicate @override
   Widget build(BuildContext context) {
     _measureBottomOverlayHeight();
+
+    // 1. Check time every 30 seconds. If t=0, update database to 'confirmed'
+    ref.listen(timeTickerProvider, (previous, next) {
+      final now = next.value ?? DateTime.now();
+      final trips = ref.read(driverTripsProvider).value ?? [];
+
+      for (var trip in trips) {
+        if (trip.status == TripStatus.scheduled &&
+            trip.driverID != null &&
+            trip.scheduledTime != null) {
+          if (now.isAfter(trip.scheduledTime!.toDate()) ||
+              now.isAtSameMomentAs(trip.scheduledTime!.toDate())) {
+            ref
+                .read(tripControllerProvider.notifier)
+                .confirmScheduledRide(trip.tripID);
+          }
+        }
+      }
+    });
+    // 2. When database flips to confirmed, trigger Snackbars/Notifications and Route!
+    ref.listen(driverTripsProvider, (previous, next) {
+      final oldTrips = previous?.value ?? [];
+      final newTrips = next.value ?? [];
+
+      for (var newTrip in newTrips) {
+        final oldTrip = oldTrips.firstWhere(
+          (t) => t.tripID == newTrip.tripID,
+          orElse: () => newTrip,
+        );
+
+        if (oldTrip.status == TripStatus.scheduled &&
+            newTrip.status == TripStatus.confirmed) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Your Scheduled Ride is starting NOW!'),
+              backgroundColor: Color(0xFF66D2A3),
+              duration: Duration(seconds: 3),
+            ),
+          );
+          NotificationService().showNotification(
+            title: 'OdoGo Alert',
+            body: 'Your Scheduled Ride is starting NOW!',
+          );
+
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      DriverActivePickupScreen(tripID: newTrip.tripID),
+                ),
+              );
+            }
+          });
+        }
+      }
+    });
 
     // WATCH THE BACKEND FOR REAL-TIME STATUS
 
@@ -620,6 +680,9 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                                       incomingTrip.tripID,
                                       currentUserName,
                                       currentUserId,
+                                      isScheduled:
+                                          incomingTrip.status ==
+                                          TripStatus.scheduled,
                                     );
 
                                 final controllerState = ref.read(
@@ -639,17 +702,34 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                                     );
                                   }
                                 } else {
-                                  // Success — navigate to active pickup
+                                  // --- UPDATED SUCCESS LOGIC ---
                                   if (mounted) {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            DriverActivePickupScreen(
-                                              tripID: incomingTrip.tripID,
-                                            ),
-                                      ),
-                                    );
+                                    if (incomingTrip.status ==
+                                        TripStatus.scheduled) {
+                                      // 1. Scheduled Ride: Show Snackbar ONLY, do not navigate!
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Scheduled Ride Accepted! View it in Upcoming Bookings.',
+                                          ),
+                                          backgroundColor: Color(0xFF66D2A3),
+                                          duration: Duration(seconds: 3),
+                                        ),
+                                      );
+                                    } else {
+                                      // 2. Immediate Ride: Navigate to active pickup
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              DriverActivePickupScreen(
+                                                tripID: incomingTrip.tripID,
+                                              ),
+                                        ),
+                                      );
+                                    }
                                   }
                                 }
                               }

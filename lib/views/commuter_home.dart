@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:odogo_app/models/enums.dart';
 import '../controllers/auth_controller.dart';
 import '../data/iitk_dropoff_locations.dart';
 import 'bookings_screen.dart';
@@ -11,6 +12,9 @@ import 'profile_screen.dart';
 import 'trip_confirmation_screen.dart';
 import 'schedule_booking_screen.dart';
 import 'location_permission_screen.dart';
+import 'waiting_for_driver_screen.dart'; // Add this near the top imports!
+import '../services/notification_permission_service.dart';
+import '../controllers/trip_controller.dart';
 
 class CommuterHomeScreen extends ConsumerStatefulWidget {
   const CommuterHomeScreen({super.key});
@@ -36,6 +40,70 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Kickstart the background t=0 monitor
+    ref.listen(timeTickerProvider, (previous, next) {
+      final now = next.value ?? DateTime.now();
+      final trips = ref.read(commuterTripsProvider).value ?? [];
+
+      for (var trip in trips) {
+        if (trip.status == TripStatus.scheduled &&
+            trip.driverID != null &&
+            trip.scheduledTime != null) {
+          if (now.isAfter(trip.scheduledTime!.toDate()) ||
+              now.isAtSameMomentAs(trip.scheduledTime!.toDate())) {
+            ref
+                .read(tripControllerProvider.notifier)
+                .confirmScheduledRide(trip.tripID);
+          }
+        }
+      }
+    });
+
+    // 2. Listen for the exact moment Scheduled -> Confirmed happens
+    ref.listen(commuterTripsProvider, (previous, next) {
+      final previousTrips = previous?.value ?? [];
+      final nextTrips = next.value ?? [];
+
+      for (var newTrip in nextTrips) {
+        final oldTrip = previousTrips.firstWhere(
+          (t) => t.tripID == newTrip.tripID,
+          orElse: () => newTrip,
+        );
+
+        if (oldTrip.status == TripStatus.scheduled &&
+            newTrip.status == TripStatus.confirmed) {
+          // A. Show the in-app Snackbar
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Your Scheduled Ride is starting NOW! The driver is on the way.',
+              ),
+              backgroundColor: Color(0xFF66D2A3),
+              duration: Duration(seconds: 4),
+            ),
+          );
+          NotificationService().showNotification(
+            title: 'OdoGo Alert',
+            body: 'Your Scheduled Ride is starting NOW!',
+          );
+          // B. Trigger Native Phone Notification (Requires flutter_local_notifications package)
+
+          // C. Auto-route to the active ride screen after a brief delay
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      WaitingForDriverScreen(tripID: newTrip.tripID),
+                ),
+              );
+            }
+          });
+        }
+      }
+    });
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: _pages[_selectedIndex],
