@@ -41,7 +41,7 @@ class _DriverCancelConfirmationScreenState extends ConsumerState<DriverCancelCon
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => const DriverHomeScreen(), // Make sure this matches your home screen import
+          builder: (context) => const DriverHomeScreen(),
         ),
         (route) => false, // This destroys the dead trip screen so they can't swipe back to it
       );
@@ -53,7 +53,7 @@ class _DriverCancelConfirmationScreenState extends ConsumerState<DriverCancelCon
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error cancelling ride: $e'),
+          content: Text('Error cancelling ride: $e'.replaceFirst('Exception: ', '').trim()),
           backgroundColor: Colors.red,
         ),
       );

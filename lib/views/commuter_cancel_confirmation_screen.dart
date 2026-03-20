@@ -53,7 +53,7 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error cancelling ride: $e'),
+          content: Text('Error cancelling ride: $e'.replaceFirst('Exception: ', '')),
           backgroundColor: Colors.red,
         ),
       );

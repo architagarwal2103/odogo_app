@@ -251,9 +251,7 @@ class TripController extends Notifier<AsyncValue<void>> {
         await _repository.updateTripData(tripID, {
           'status': TripStatus.pending.name,
           'driverID': FieldValue.delete(),
-          'driverName': FieldValue.delete(), 
-          // NEW: Add this flag to the database so your Commuter UI can detect it!
-          'driverCancelledLastMinute': true, 
+          'driverName': FieldValue.delete(),
         });
 
         // Free up this driver so they can receive other broadcasts

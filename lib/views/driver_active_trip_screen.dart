@@ -293,6 +293,8 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
         }
       }
     });
+    final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
+    final trip = activeTripAsync.value;
     final polylinePoints = _polylinePoints;
     _measureBottomCardHeight();
 
@@ -439,15 +441,15 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
                         child: const Icon(Icons.location_on, color: Colors.red, size: 24),
                       ),
                       const SizedBox(width: 16),
-                      const Expanded(
+                      Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Open Air Theatre(OAT)',
+                              trip?.endLocName ?? '---',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
-                            Text(
+                            const Text(
                               'IIT Kanpur Campus',
                               style: TextStyle(color: Colors.grey, fontSize: 13),
                             ),
@@ -464,9 +466,9 @@ class _DriverActiveTripScreenState extends ConsumerState<DriverActiveTripScreen>
                         child: const Icon(Icons.person, color: Colors.grey),
                       ),
                       const SizedBox(width: 12),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Arman',
+                          trip?.commuterName ?? '---',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.black,
