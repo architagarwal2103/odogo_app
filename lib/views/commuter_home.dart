@@ -64,6 +64,29 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
       final previousTrips = previous?.value ?? [];
       final nextTrips = next.value ?? [];
 
+      if (previous?.value == null && nextTrips.isNotEmpty) {
+        for (var trip in nextTrips) {
+          // If Firebase says they are currently in the middle of a ride...
+          if (trip.status == TripStatus.confirmed ||
+              trip.status == TripStatus.ongoing) {
+            // Wait 1 frame for the Home Screen to finish drawing, then teleport them!
+            Future.microtask(() {
+              if (mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    // NOTE: Pass pickupPoint/dropoffPoint if you have them, otherwise null is fine!
+                    builder: (context) =>
+                        RideConfirmedScreen(tripID: trip.tripID),
+                  ),
+                );
+              }
+            });
+            return; // Stop checking once we find the active ride
+          }
+        }
+      }
+
       for (var newTrip in nextTrips) {
         final oldTrip = previousTrips.firstWhere(
           (t) => t.tripID == newTrip.tripID,

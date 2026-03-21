@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Added Riverpod
+import 'package:go_router/go_router.dart';
+import 'package:odogo_app/models/enums.dart';
 import '../controllers/auth_controller.dart'; // 2. Import your AuthController (adjust path if needed)
 
 // 3. Changed from StatelessWidget to ConsumerWidget
@@ -109,11 +111,26 @@ class SignOutScreen extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 0,
       ),
-      onPressed: () {
+      onPressed: () async {
         if (text == 'YES') {
-          // 7. THE FIX: Tell the Controller to wipe the hard drive.
-          // GoRouter will automatically see the state change and instantly teleport the user to the Landing Page!
-          ref.read(authControllerProvider.notifier).logout();
+          // Await the logout process so the backend actually finishes
+          await ref.read(authControllerProvider.notifier).logout();
+          // Safety check to prevent errors after an async gap
+          if (!context.mounted) return;
+          // See if there is a linked account still logged in
+          final updatedUser = ref.read(currentUserProvider);
+
+          if (updatedUser != null) {
+            // There is another account active! Route them to their proper home.
+            if (updatedUser.role == UserRole.driver) {
+              context.go('/driver-home');
+            } else {
+              context.go('/commuter-home');
+            }
+          } else {
+            // EVERYONE is logged out. Force them back to the Landing Page!
+            context.go('/login');
+          }
         } else {
           Navigator.pop(context);
         }

@@ -222,6 +222,27 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
       final oldTrips = previous?.value ?? [];
       final newTrips = next.value ?? [];
 
+      if (previous?.value == null && newTrips.isNotEmpty) {
+        for (var trip in newTrips) {
+          // If Firebase says the driver is currently executing a ride...
+          if (trip.status == TripStatus.confirmed ||
+              trip.status == TripStatus.ongoing) {
+            Future.microtask(() {
+              if (mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        DriverActivePickupScreen(tripID: trip.tripID),
+                  ),
+                );
+              }
+            });
+            return;
+          }
+        }
+      }
+
       for (var newTrip in newTrips) {
         final oldTrip = oldTrips.firstWhere(
           (t) => t.tripID == newTrip.tripID,
@@ -589,7 +610,7 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
                 ),
               ),
 
-              if (hasIncomingTrips) ...[
+              if (_isOnline && hasIncomingTrips) ...[
                 const SizedBox(height: 16),
 
                 Container(

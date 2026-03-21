@@ -74,6 +74,19 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
       return;
     }
 
+    // AGE CHECK
+    if (widget.isDriver) {
+      final now = DateTime.now();
+      // Calculate exactly 18 years ago from today
+      final legalAgeLimit = DateTime(now.year - 18, now.month, now.day);
+
+      // If their birthday is AFTER that limit, they are too young!
+      if (_selectedDate!.isAfter(legalAgeLimit)) {
+        _showError('Drivers must be at least 18 years old to register.');
+        return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
     });

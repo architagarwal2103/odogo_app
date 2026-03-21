@@ -101,6 +101,22 @@ class _LandingPageState extends State<LandingPage> {
                   setState(() {
                     isDriverView = !isDriverView;
                   });
+
+                  ScaffoldMessenger.of(context).clearSnackBars();
+                  // Show the new snackbar
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        isDriverView
+                            ? 'Switched to Driver mode'
+                            : 'Switched to Commuter mode',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      backgroundColor: Colors.black87,
+                      duration: const Duration(seconds: 2),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 },
                 child: Text(
                   isDriverView ? 'Want to be a user?' : 'Want to be a driver?',
