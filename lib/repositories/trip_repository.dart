@@ -2,7 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:odogo_app/models/trip_model.dart';
 
 class TripRepository {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _firestore;
+  TripRepository({FirebaseFirestore? firestore})
+    : _firestore = firestore ?? FirebaseFirestore.instance;
   CollectionReference get _trips => _firestore.collection('trips');
 
   /// Commuter: Requests a new ride.
@@ -37,6 +39,17 @@ class TripRepository {
       }
       return null;
     });
+  }
+
+  /// Fetches a specific trip's data as a Map.
+  /// This allows the Controller to get trip details without calling Firestore directly.
+  Future<Map<String, dynamic>?> getTripData(String tripID) async {
+    try {
+      final doc = await _trips.doc(tripID).get();
+      return doc.data() as Map<String, dynamic>?;
+    } catch (e) {
+      throw Exception('Failed to fetch trip data: $e');
+    }
   }
 
   /// Driver: Accepts a trip or updates its status (e.g., pending -> ongoing -> completed).
@@ -84,7 +97,11 @@ class TripRepository {
         }
       }
     } catch (e) {
-      print("Failed to cleanup old trips: $e".replaceFirst('Exception: ', '').trim());
+      print(
+        "Failed to cleanup old trips: $e"
+            .replaceFirst('Exception: ', '')
+            .trim(),
+      );
     }
   }
 }

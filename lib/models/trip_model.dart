@@ -18,6 +18,32 @@ class TripModel {
   final bool driverEnd;
   final bool commuterEnd;
   final DateTime? scheduledTime; // Null for immediate rides
+  // Add this inside the TripModel class
+  TripModel copyWith({
+    String? tripID,
+    TripStatus? status,
+    bool? driverEnd,
+    bool? commuterEnd,
+  }) {
+    return TripModel(
+      tripID: tripID ?? this.tripID,
+      status: status ?? this.status,
+      commuterName: this.commuterName,
+      commuterID: this.commuterID,
+      driverName: this.driverName,
+      driverID: this.driverID,
+      startLocName: this.startLocName,
+      startLatitude: this.startLatitude,
+      startLongitude: this.startLongitude,
+      endLocName: this.endLocName,
+      startTime: this.startTime,
+      eta: this.eta,
+      ridePIN: this.ridePIN,
+      driverEnd: driverEnd ?? this.driverEnd,
+      commuterEnd: commuterEnd ?? this.commuterEnd,
+      scheduledTime: this.scheduledTime,
+    );
+  }
 
   TripModel({
     required this.tripID,
@@ -53,12 +79,16 @@ class TripModel {
       startLatitude: (json['startLatitude'] as num?)?.toDouble(),
       startLongitude: (json['startLongitude'] as num?)?.toDouble(),
       endLocName: json['endLoc'] ?? '',
-      startTime: json['startTime'] != null ? (json['startTime'] as Timestamp).toDate() : null,
+      startTime: json['startTime'] != null
+          ? (json['startTime'] as Timestamp).toDate()
+          : null,
       eta: json['eta'] as Timestamp?,
       ridePIN: json['ridePIN'] ?? '',
       driverEnd: json['driverEnd'] ?? false,
       commuterEnd: json['commuterEnd'] ?? false,
-      scheduledTime: json['scheduledTime'] != null ? (json['scheduledTime'] as Timestamp).toDate() : null,
+      scheduledTime: json['scheduledTime'] != null
+          ? (json['scheduledTime'] as Timestamp).toDate()
+          : null,
     );
   }
 
@@ -79,7 +109,8 @@ class TripModel {
       'ridePIN': ridePIN,
       'driverEnd': driverEnd,
       'commuterEnd': commuterEnd,
-      if (scheduledTime != null) 'scheduledTime': Timestamp.fromDate(scheduledTime!),
+      if (scheduledTime != null)
+        'scheduledTime': Timestamp.fromDate(scheduledTime!),
     };
   }
 }

@@ -185,7 +185,9 @@ class TripController extends Notifier<AsyncValue<void>> {
 
       state = const AsyncValue.data(null);
     } catch (e, st) {
-      print('DEBUG: acceptRide error: $e'.replaceFirst('Exception: ', '').trim());
+      print(
+        'DEBUG: acceptRide error: $e'.replaceFirst('Exception: ', '').trim(),
+      );
       print('DEBUG: Stack trace: $st');
       state = AsyncValue.error(e, st);
     }
@@ -205,7 +207,10 @@ class TripController extends Notifier<AsyncValue<void>> {
   Future<void> startRide(String tripID) async {
     state = const AsyncValue.loading();
     try {
-      await _repository.updateTripData(tripID, {'status': TripStatus.ongoing.name, 'startTime': DateTime.now()});
+      await _repository.updateTripData(tripID, {
+        'status': TripStatus.ongoing.name,
+        'startTime': DateTime.now(),
+      });
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -220,12 +225,14 @@ class TripController extends Notifier<AsyncValue<void>> {
       if (currentUser == null) throw Exception("User not authenticated.");
 
       // 1. Fetch trip data FIRST to understand the current state
-      final tripDoc = await FirebaseFirestore.instance
-          .collection('trips')
-          .doc(tripID)
-          .get();
-      if (!tripDoc.exists) throw Exception("Trip not found");
-      final tripData = tripDoc.data() as Map<String, dynamic>;
+      // final tripDoc = await FirebaseFirestore.instance
+      //     .collection('trips')
+      //     .doc(tripID)
+      //     .get();
+      // if (!tripDoc.exists) throw Exception("Trip not found");
+      // final tripData = tripDoc.data() as Map<String, dynamic>;
+      final tripData = await _repository.getTripData(tripID);
+      if (tripData == null) throw Exception("Trip not found");
 
       // Determine roles and trip state
       final bool isDriverCancelling = currentUser.role == UserRole.driver;
@@ -316,11 +323,13 @@ class TripController extends Notifier<AsyncValue<void>> {
         isDriver ? 'driverEnd' : 'commuterEnd': true,
       });
       // RULE 3: Fetch the trip to check if BOTH parties have marked it as completed
-      final tripDoc = await FirebaseFirestore.instance
-          .collection('trips')
-          .doc(tripID)
-          .get();
-      final tripData = tripDoc.data() as Map<String, dynamic>;
+      // final tripDoc = await FirebaseFirestore.instance
+      //     .collection('trips')
+      //     .doc(tripID)
+      //     .get();
+      // final tripData = tripDoc.data() as Map<String, dynamic>;
+      final tripData = await _repository.getTripData(tripID);
+      if (tripData == null) return;
 
       final driverEnd = tripData['driverEnd'] ?? false;
       final commuterEnd = tripData['commuterEnd'] ?? false;
@@ -370,7 +379,7 @@ class TripController extends Notifier<AsyncValue<void>> {
   Future<void> cancelScheduledRideByCommuter(TripModel trip) async {
     try {
       await _repository.updateTripData(trip.tripID, {
-        'status': TripStatus.cancelled.name, 
+        'status': TripStatus.cancelled.name,
       });
     } catch (e) {
       print('Error cancelling by commuter: $e');
