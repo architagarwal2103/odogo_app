@@ -68,6 +68,16 @@ class UserRepository {
     }
   }
 
+  /// Deletes a user document from Firestore.
+  Future<void> deleteUser(String uid) async {
+    try {
+      await _users.doc(uid).delete();
+    } catch (e) {
+      print('Error deleting user: $e'.replaceFirst('Exception: ', '').trim());
+      throw Exception('Failed to delete user profile.');
+    }
+  }
+  
   /// Streams the user's data so the UI updates automatically
   /// if their profile changes (e.g., verificationStatus changes to true).
   Stream<UserModel?> streamUser(String uid) {

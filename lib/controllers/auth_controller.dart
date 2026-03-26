@@ -35,6 +35,9 @@ class AuthError extends AuthState {
 // --- Providers ---
 final userRepositoryProvider = Provider((ref) => UserRepository());
 
+// [MODIFIED FOR TESTING 1/3]: Added this provider so we can mock the email service
+final emailAuthServiceProvider = Provider((ref) => EmailOtpAuthService.instance);
+
 // 1. UPDATED to NotifierProvider
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(() {
   return AuthController();
@@ -52,7 +55,8 @@ final currentUserProvider = Provider<UserModel?>((ref) {
 // --- Controller ---
 // 2. UPDATED to Notifier
 class AuthController extends Notifier<AuthState> {
-  final EmailOtpAuthService _authService = EmailOtpAuthService.instance;
+  // [MODIFIED FOR TESTING 2/3]: Changed from hardcoded instance to reading the provider
+  EmailOtpAuthService get _authService => ref.read(emailAuthServiceProvider);
 
   // 3. Notifiers use a build() method to set the initial state
   @override
@@ -103,7 +107,7 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  // Future<void> verifyOtp(String email, String otp) async {
+   // Future<void> verifyOtp(String email, String otp) async {
   //   state = AuthLoading();
   //   try {
   //     final isValid = _authService.verifyOtp(email: email, otp: otp);
@@ -237,7 +241,7 @@ class AuthController extends Notifier<AuthState> {
   Future<void> deleteAccount(String email, String otp) async {
     state = AuthLoading();
     try {
-      final verified = EmailOtpAuthService.instance.verifyOtp(
+      final verified = _authService.verifyOtp( // Also uses the getter now
         email: email,
         otp: otp,
       );
@@ -246,7 +250,8 @@ class AuthController extends Notifier<AuthState> {
         return;
       }
 
-      await FirebaseFirestore.instance.collection('users').doc(email).delete();
+      // [MODIFIED FOR TESTING 3/3]: Replaced direct Firestore call with Repo call
+      await _userRepo.deleteUser(email);
 
       final prefs = await SharedPreferences.getInstance();
 
