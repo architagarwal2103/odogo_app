@@ -3,7 +3,6 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:odogo_app/repositories/trip_repository.dart';
 import 'package:odogo_app/models/trip_model.dart';
 import 'package:odogo_app/models/enums.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
   late FakeFirebaseFirestore fakeDb;
@@ -21,6 +20,7 @@ void main() {
     ridePIN: '1234',
     driverEnd: false,
     commuterEnd: false,
+    bookingTime: DateTime.now(),
   );
 
   setUp(() {
