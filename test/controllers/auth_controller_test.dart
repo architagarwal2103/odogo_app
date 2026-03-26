@@ -142,6 +142,52 @@ void main() {
   });
 
   // ------------------------------------------------------------------
+  // POINT 1: Registering a New User (Database returns null)
+  // ------------------------------------------------------------------
+  test('verifyOtp for NEW user changes state to AuthNeedsProfileSetup', () async {
+    const testEmail = 'freshman@gmail.com';
+    const testOtp = '0000';
+
+    when(() => mockAuthService.verifyOtp(email: testEmail, otp: testOtp)).thenReturn(true);
+    
+    when(() => mockUserRepo.getUserByEmail(testEmail)).thenAnswer((_) async => null);
+
+    final controller = container.read(authControllerProvider.notifier);
+    await waitForBoot(controller);
+
+    await controller.verifyOtp(testEmail, testOtp);
+
+    final finalState = container.read(authControllerProvider);
+    expect(finalState, isA<AuthNeedsProfileSetup>());
+  });
+
+  // ------------------------------------------------------------------
+  // POINT 1: Registering a New User (Saving the profile)
+  // ------------------------------------------------------------------
+  test('completeProfileSetup saves new user to database and authenticates', () async {
+    final newUser = UserModel(
+      userID: 'new_uid_999',
+      emailID: 'freshman@gmail.com',
+      name: 'Aiklavyaveer',
+      phoneNo: '1234567890',
+      gender: 'Male',
+      dob: Timestamp.now(),
+      role: UserRole.commuter,
+    );
+
+    when(() => mockUserRepo.createUser(newUser)).thenAnswer((_) async {});
+
+    final controller = container.read(authControllerProvider.notifier);
+    await waitForBoot(controller);
+    await controller.completeProfileSetup(newUser);
+    verify(() => mockUserRepo.createUser(newUser)).called(1);
+    final finalState = container.read(authControllerProvider);
+    expect(finalState, isA<AuthAuthenticated>())
+    expect((finalState as AuthAuthenticated).user.emailID, 'freshman@gmail.com');
+  });
+
+
+  // ------------------------------------------------------------------
   // FEATURE 16: Switch Account
   // ------------------------------------------------------------------
   test('switchAccount successfully changes the active email and fetches new user', () async {
