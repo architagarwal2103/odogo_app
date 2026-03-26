@@ -162,6 +162,9 @@ class TripController extends Notifier<AsyncValue<void>> {
   }
 
   /// Driver: Marks the ride as picked up / in progress
+  /// [TESTED BY]: TC-03 (Asynchronous State Transition)
+  /// Scope: Ensures the UI state immediately transitions from Data -> Loading.
+  /// This prevents "double-tapping" and provides user feedback during latency.
   Future<void> startRide(String tripID) async {
     state = const AsyncValue.loading();
     try {

@@ -19,7 +19,34 @@ class TripModel {
   final bool commuterEnd;
   final DateTime? scheduledTime; // Null for immediate rides
   final DateTime bookingTime;
-
+  
+  TripModel copyWith({
+    String? tripID,
+    TripStatus? status,
+    bool? driverEnd,
+    bool? commuterEnd,
+  }) {
+    return TripModel(
+      tripID: tripID ?? this.tripID,
+      status: status ?? this.status,
+      commuterName: this.commuterName,
+      commuterID: this.commuterID,
+      driverName: this.driverName,
+      driverID: this.driverID,
+      startLocName: this.startLocName,
+      startLatitude: this.startLatitude,
+      startLongitude: this.startLongitude,
+      endLocName: this.endLocName,
+      startTime: this.startTime,
+      eta: this.eta,
+      ridePIN: this.ridePIN,
+      driverEnd: driverEnd ?? this.driverEnd,
+      commuterEnd: commuterEnd ?? this.commuterEnd,
+      scheduledTime: this.scheduledTime,
+      bookingTime: this.bookingTime,
+    );
+  }
+  
   TripModel({
     required this.tripID,
     required this.status,
