@@ -2,6 +2,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class NotificationPermissionService {
   static const String _notificationEnabledKey = 'notification_enabled';
@@ -134,3 +135,6 @@ class NotificationService {
     );
   }
 }
+
+final notificationPermissionServiceProvider = Provider((ref) => NotificationPermissionService());
+final notificationServiceProvider = Provider((ref) => NotificationService());

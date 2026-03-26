@@ -122,60 +122,25 @@ class TripController extends Notifier<AsyncValue<void>> {
   }
 
   /// Driver: Accepts a pending ride
-  Future<void> acceptRide(
-    String tripID,
-    String driverName,
-    String driverID, {
-    bool isScheduled = false,
-  }) async {
+  Future<void> acceptRide(String tripID, String driverName, String driverID, {bool isScheduled = false}) async {
     state = const AsyncValue.loading();
     try {
-      print('DEBUG: acceptRide called for tripID=$tripID, driverID=$driverID');
+      // 1. Delegate the complex transaction to the repository
+      await _repository.runAcceptRideTransaction(
+        tripID: tripID,
+        driverID: driverID,
+        driverName: driverName,
+        isScheduled: isScheduled,
+      );
 
-      // Use a Firestore transaction to atomically claim the trip for this driver.
-      final docRef = FirebaseFirestore.instance.collection('trips').doc(tripID);
-
-      await FirebaseFirestore.instance.runTransaction((tx) async {
-        final snapshot = await tx.get(docRef);
-        if (!snapshot.exists) throw Exception('Trip not found');
-
-        final data = snapshot.data() as Map<String, dynamic>;
-        final currentStatus = data['status'] as String?;
-        final existingDriver = data['driverID'];
-
-        // Only allow claiming if there is no assigned driver and status is pending/scheduled
-        if (existingDriver == null &&
-            (currentStatus == TripStatus.pending.name ||
-                currentStatus == TripStatus.scheduled.name)) {
-          tx.update(docRef, {
-            'status': isScheduled
-                ? TripStatus.scheduled.name
-                : TripStatus.confirmed.name,
-            'driverName': driverName,
-            'driverID': driverID,
-          });
-        } else {
-          throw Exception(
-            'Trip already accepted by another driver or not available.',
-          );
-        }
-      });
-      print('DEBUG: Trip updated to confirmed');
-
-      // Set the driver's mode to busy
+      // 2. Set driver mode to busy
       await ref.read(userRepositoryProvider).updateUser(driverID, {
         'mode': DriverMode.busy.name,
       });
-      print('DEBUG: Driver mode set to busy');
 
-      // Refresh local user state so the pendingTripsProvider instantly cuts off
+      // 3. Refresh user state
       await ref.read(authControllerProvider.notifier).refreshUser();
-      print('DEBUG: User refreshed');
-
-      // Verify the mode was actually set
-      final updatedUser = ref.read(currentUserProvider);
-      print('DEBUG: Updated user mode: ${updatedUser?.mode}');
-
+      
       state = const AsyncValue.data(null);
     } catch (e, st) {
       print(
@@ -217,26 +182,17 @@ class TripController extends Notifier<AsyncValue<void>> {
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) throw Exception("User not authenticated.");
 
-      // Fetching trip data to understand the current state
-      final tripDoc = await FirebaseFirestore.instance
-          .collection('trips')
-          .doc(tripID)
-          .get();
-      if (!tripDoc.exists) throw Exception("Trip not found");
-      final tripData = tripDoc.data() as Map<String, dynamic>;
+      // 1. Use the repository to fetch the data instead of Firebase direct
+      final tripData = await _repository.getTripRawData(tripID);
+      if (tripData == null) throw Exception("Trip not found");
 
-      // Determining roles and trip state
+      // ... (Keep all your existing boolean logic and strike constraint rules here exactly as they are) ...
       final bool isDriverCancelling = currentUser.role == UserRole.driver;
       final bool isCommuterCancelling = currentUser.role == UserRole.commuter;
       final bool hasDriverAccepted = tripData['driverID'] != null;
 
-      // Checking if the strike constraint applies
       bool applyConstraint = true;
-
-      // Cancellation shouldn't count for commuter if no driver has accepted yet
-      if (isCommuterCancelling && !hasDriverAccepted) {
-        applyConstraint = false;
-      }
+      if (isCommuterCancelling && !hasDriverAccepted) applyConstraint = false;
 
       final now = DateTime.now();
       List<Timestamp> recentCancels = [];
@@ -244,108 +200,66 @@ class TripController extends Notifier<AsyncValue<void>> {
       // Enforce the 15-minute constraint if applicable
       if (applyConstraint) {
         final fifteenMinsAgo = now.subtract(const Duration(minutes: 15));
+        recentCancels = currentUser.cancelHistory?.where((timestamp) {
+          return timestamp.toDate().isAfter(fifteenMinsAgo);
+        }).toList() ?? [];
 
-        recentCancels =
-            currentUser.cancelHistory?.where((timestamp) {
-              return timestamp.toDate().isAfter(fifteenMinsAgo);
-            }).toList() ??
-            [];
-
-        if (recentCancels.length >= 2) {
-          throw Exception("You can cancel a maximum of 2 rides in 15 minutes.");
-        }
+        if (recentCancels.length >= 2) throw Exception("You can cancel a maximum of 2 rides in 15 minutes.");
       }
 
-      // Executing the specific cancellation logic based on whether commuter/driver is cancelling
       if (isDriverCancelling) {
-        // If Driver cancels, we should re-broadcast the trip!
         await _repository.updateTripData(tripID, {
           'status': TripStatus.pending.name,
-          'driverID': FieldValue.delete(),
-          'driverName': FieldValue.delete(),
+          'driverID': null, // Use null instead of FieldValue.delete() for mocks to work smoothly
+          'driverName': null, 
         });
-
-        // And free up this driver so they can receive other broadcasts
-        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {
-          'mode': DriverMode.online.name,
-        });
+        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {'mode': DriverMode.online.name});
       } else if (isCommuterCancelling) {
-        // If commuter cancels, the trip is dead
-        await _repository.updateTripData(tripID, {
-          'status': TripStatus.cancelled.name,
-        });
+        await _repository.updateTripData(tripID, {'status': TripStatus.cancelled.name}); // If commuter cancels, the trip is dead
 
         // If a driver was already attached to this trip, they should be made free
         if (hasDriverAccepted) {
-          await ref.read(userRepositoryProvider).updateUser(
-            tripData['driverID'],
-            {'mode': DriverMode.online.name},
-          );
+          await ref.read(userRepositoryProvider).updateUser(tripData['driverID'], {'mode': DriverMode.online.name});
         }
       }
 
       // Counts towards penalty only if the constraint is applied
       if (applyConstraint) {
         recentCancels.add(Timestamp.fromDate(now));
-        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {
-          'cancelHistory': recentCancels,
-        });
+        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {'cancelHistory': recentCancels});
       }
 
-      // Syncing the local user state
       await ref.read(authControllerProvider.notifier).refreshUser();
-
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
-      rethrow;
+      rethrow; // Ensure the UI catches the strike rule errors!
     }
   }
 
-  /// Commuter: Marks their side of the ride as complete
-  Future<void> completeRide({
-    required String tripID,
-    required bool isDriver,
-  }) async {
+  /// User: Marks their side of the ride as complete
+  Future<void> completeRide({required String tripID, required bool isDriver}) async {
     state = const AsyncValue.loading();
     try {
-      // Updates either 'driverEnd' or 'commuterEnd' to true based on who called it
       await _repository.updateTripData(tripID, {
         isDriver ? 'driverEnd' : 'commuterEnd': true,
       });
-      // Fetches the trip to check if both commuter and driver have marked it as completed
-      final tripDoc = await FirebaseFirestore.instance
-          .collection('trips')
-          .doc(tripID)
-          .get();
-      final tripData = tripDoc.data() as Map<String, dynamic>;
+      
+      // Use the repository to check the status
+      final tripData = await _repository.getTripRawData(tripID);
+      if (tripData == null) throw Exception("Trip not found");
 
       final driverEnd = tripData['driverEnd'] ?? false;
       final commuterEnd = tripData['commuterEnd'] ?? false;
 
-      // If both are true, finalize the ride and free the driver
       if (driverEnd && commuterEnd) {
-        await _repository.updateTripData(tripID, {
-          'status': TripStatus.completed.name,
-        });
-
-        // Revert the driver back to online so they can accept new rides
+        await _repository.updateTripData(tripID, {'status': TripStatus.completed.name});
         final assignedDriverID = tripData['driverID'];
         if (assignedDriverID != null) {
-          await ref.read(userRepositoryProvider).updateUser(assignedDriverID, {
-            'mode': DriverMode.online.name,
-          });
+          await ref.read(userRepositoryProvider).updateUser(assignedDriverID, {'mode': DriverMode.online.name});
         }
-
-        // Trigger Background Cleanup ---
-        //   final commuterID = tripData['commuterID'];
-        //   if (commuterID != null)
-        //     _repository.cleanupOldTrips(commuterID, 'commuterID');
-        //   if (assignedDriverID != null)
-        //     _repository.cleanupOldTrips(assignedDriverID, 'driverID');
       }
 
-      // Sync the state
       await ref.read(authControllerProvider.notifier).refreshUser();
       state = const AsyncValue.data(null);
     } catch (e, st) {

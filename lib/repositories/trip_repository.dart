@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:odogo_app/models/trip_model.dart';
+import 'package:odogo_app/models/enums.dart';
 
 class TripRepository {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -104,5 +105,47 @@ class TripRepository {
             .trim(),
       );
     }
+  }
+
+  /// Fetches a single trip's raw data as a Map. Useful for validation before actions.
+  Future<Map<String, dynamic>?> getTripRawData(String tripID) async {
+    final doc = await _trips.doc(tripID).get();
+    if (doc.exists) {
+      return doc.data() as Map<String, dynamic>;
+    }
+    return null;
+  }
+
+  /// Runs the atomic transaction to safely assign a driver to a trip
+  Future<void> runAcceptRideTransaction({
+    required String tripID,
+    required String driverID,
+    required String driverName,
+    required bool isScheduled,
+  }) async {
+    final docRef = _trips.doc(tripID);
+
+    await _firestore.runTransaction((tx) async {
+      final snapshot = await tx.get(docRef);
+      if (!snapshot.exists) throw Exception('Trip not found');
+
+      final data = snapshot.data() as Map<String, dynamic>;
+      final currentStatus = data['status'] as String?;
+      final existingDriver = data['driverID'];
+
+      if (existingDriver == null &&
+          (currentStatus == TripStatus.pending.name ||
+              currentStatus == TripStatus.scheduled.name)) {
+        tx.update(docRef, {
+          'status': isScheduled
+              ? TripStatus.scheduled.name
+              : TripStatus.confirmed.name,
+          'driverName': driverName,
+          'driverID': driverID,
+        });
+      } else {
+        throw Exception('Trip already accepted by another driver or not available.');
+      }
+    });
   }
 }
