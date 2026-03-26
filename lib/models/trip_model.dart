@@ -18,6 +18,7 @@ class TripModel {
   final bool driverEnd;
   final bool commuterEnd;
   final DateTime? scheduledTime; // Null for immediate rides
+  final DateTime bookingTime;
 
   TripModel({
     required this.tripID,
@@ -36,6 +37,7 @@ class TripModel {
     required this.driverEnd,
     required this.commuterEnd,
     this.scheduledTime,
+    required this.bookingTime,
   });
 
   factory TripModel.fromJson(Map<String, dynamic> json) {
@@ -53,12 +55,19 @@ class TripModel {
       startLatitude: (json['startLatitude'] as num?)?.toDouble(),
       startLongitude: (json['startLongitude'] as num?)?.toDouble(),
       endLocName: json['endLoc'] ?? '',
-      startTime: json['startTime'] != null ? (json['startTime'] as Timestamp).toDate() : null,
+      startTime: json['startTime'] != null
+          ? (json['startTime'] as Timestamp).toDate()
+          : null,
       eta: json['eta'] as Timestamp?,
       ridePIN: json['ridePIN'] ?? '',
       driverEnd: json['driverEnd'] ?? false,
       commuterEnd: json['commuterEnd'] ?? false,
-      scheduledTime: json['scheduledTime'] != null ? (json['scheduledTime'] as Timestamp).toDate() : null,
+      scheduledTime: json['scheduledTime'] != null
+          ? (json['scheduledTime'] as Timestamp).toDate()
+          : null,
+      bookingTime: json['bookingTime'] != null
+          ? (json['bookingTime'] as Timestamp).toDate()
+          : DateTime.now(),
     );
   }
 
@@ -79,7 +88,9 @@ class TripModel {
       'ridePIN': ridePIN,
       'driverEnd': driverEnd,
       'commuterEnd': commuterEnd,
-      if (scheduledTime != null) 'scheduledTime': Timestamp.fromDate(scheduledTime!),
+      if (scheduledTime != null)
+        'scheduledTime': Timestamp.fromDate(scheduledTime!),
+      'bookingTime': Timestamp.fromDate(bookingTime),
     };
   }
 }

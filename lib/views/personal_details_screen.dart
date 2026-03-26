@@ -4,12 +4,10 @@ import 'gender_selection_screen.dart';
 import 'email_edit_screen.dart';
 import 'edit_date_of_birth_screen.dart';
 
-// We use an underscore here (_BoundedBouncingScrollPhysics) to keep it private to this file
-// so it doesn't conflict with the one in your profile_screen.dart
 class _BoundedBouncingScrollPhysics extends BouncingScrollPhysics {
   const _BoundedBouncingScrollPhysics({super.parent});
 
-  final double maxOverscroll = 25.0; 
+  final double maxOverscroll = 25.0;
 
   @override
   _BoundedBouncingScrollPhysics applyTo(ScrollPhysics? ancestor) {
@@ -36,9 +34,12 @@ class PersonalDetailsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black, // Keeps the OdoGo theme
+        backgroundColor: Colors.black,
         elevation: 0,
-        title: const Text('Personal Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Personal Details',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -52,58 +53,66 @@ class PersonalDetailsScreen extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: 10),
-                
+
                 _buildTile(
-                  context, 
-                  Icons.phone, 
+                  context,
+                  Icons.phone,
                   'Phone Number',
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const PhoneNumberEditScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const PhoneNumberEditScreen(),
+                      ),
                     );
-                  }
+                  },
                 ),
                 const Divider(height: 30, thickness: 1, color: Colors.black12),
-                
+
                 _buildTile(
-                  context, 
-                  Icons.email_outlined, 
+                  context,
+                  Icons.email_outlined,
                   'Email',
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const EmailEditScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const EmailEditScreen(),
+                      ),
                     );
-                  }
+                  },
                 ),
                 const Divider(height: 30, thickness: 1, color: Colors.black12),
-                
+
                 _buildTile(
-                  context, 
-                  Icons.person_outline, 
+                  context,
+                  Icons.person_outline,
                   'Gender',
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const GenderSelectionScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const GenderSelectionScreen(),
+                      ),
                     );
-                  }
+                  },
                 ),
                 const Divider(height: 30, thickness: 1, color: Colors.black12),
-                
+
                 _buildTile(
-                  context, 
-                  Icons.calendar_today, 
+                  context,
+                  Icons.calendar_today,
                   'Date of Birth',
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const EditDateOfBirthScreen()),
+                      MaterialPageRoute(
+                        builder: (context) => const EditDateOfBirthScreen(),
+                      ),
                     );
-                  }
+                  },
                 ),
-                
+
                 const SizedBox(height: 20),
               ],
             ),
@@ -113,8 +122,12 @@ class PersonalDetailsScreen extends StatelessWidget {
     );
   }
 
-  // Exact same tile structure for consistency
-  Widget _buildTile(BuildContext context, IconData icon, String title, {VoidCallback? onTap}) {
+  Widget _buildTile(
+    BuildContext context,
+    IconData icon,
+    String title, {
+    VoidCallback? onTap,
+  }) {
     return ListTile(
       leading: Icon(icon, color: Colors.black87),
       title: Text(

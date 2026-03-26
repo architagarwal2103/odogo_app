@@ -8,7 +8,7 @@ import '../repositories/trip_repository.dart';
 
 final tripRepositoryProvider = Provider((ref) => TripRepository());
 
-// We use this to constantly re-evaluate the scheduled ride time windows!
+// Constantly re-evaluates the scheduled ride time windows
 final timeTickerProvider = StreamProvider<DateTime>((ref) {
   return Stream.periodic(const Duration(seconds: 30), (_) => DateTime.now());
 });
@@ -20,30 +20,28 @@ final pendingTripsProvider = StreamProvider<List<TripModel>>((ref) {
   if (currentUser?.mode == DriverMode.busy) {
     return Stream.value([]);
   }
-  // 1. Get the LIVE ticking time
+  // Get the live ticking time
   final now = ref.watch(timeTickerProvider).value ?? DateTime.now();
   final tripsStream = ref.watch(tripRepositoryProvider).streamPendingTrips();
 
-  // 3. Apply the Smart Filtering
   return tripsStream.map((trips) {
     return trips.where((trip) {
       // Immediate rides are always visible
       if (trip.status == TripStatus.pending) return true;
 
-      // Scheduled rides follow the exact broadcast rules
+      // Scheduled rides follow the broadcast rules
       if (trip.status == TripStatus.scheduled && trip.scheduledTime != null) {
         final scheduledTime = trip.scheduledTime!;
         final diff = scheduledTime.difference(now);
         final minutesLeft = diff.inMinutes;
 
         // "inMinutes" truncates. So if diff is 120m 59s, it stays '120' for exactly 1 minute.
-        // This perfectly matches your "broadcast for 1 minute" requirement!
         if (minutesLeft == 120) return true; // 2 hours prior
         if (minutesLeft == 60) return true; // 1 hour prior
         if (minutesLeft == 30) return true; // 30 mins prior
 
-        // Continuous broadcast starting 15 mins prior (up until 1 hr after in case of delays)
-        if (minutesLeft <= 15 && minutesLeft >= -60) return true;
+        // Continuous broadcast starting 15 mins prior (up until 15 mins after in case of delays)
+        if (minutesLeft <= 15 && minutesLeft >= -15) return true;
       }
 
       // If it doesn't match the time windows, keep it hidden from the driver!
@@ -57,7 +55,6 @@ final activeTripStreamProvider = StreamProvider.family<TripModel?, String>((
   ref,
   tripID,
 ) {
-  // Changed to ref.watch for better reactivity
   return ref.watch(tripRepositoryProvider).streamTrip(tripID);
 });
 
@@ -66,7 +63,7 @@ final tripControllerProvider =
       return TripController();
     });
 
-// 1. Fetches specific user details (like phone numbers) on the fly
+// Fetches specific user details, like phone numbers
 final userInfoProvider = FutureProvider.family<UserModel?, String>((
   ref,
   uid,
@@ -75,7 +72,6 @@ final userInfoProvider = FutureProvider.family<UserModel?, String>((
   return await ref.read(userRepositoryProvider).getUser(uid);
 });
 
-// 2. Centralized Commuter Trips Stream
 final commuterTripsProvider = StreamProvider.autoDispose<List<TripModel>>((
   ref,
 ) {
@@ -92,7 +88,6 @@ final commuterTripsProvider = StreamProvider.autoDispose<List<TripModel>>((
       );
 });
 
-// 3. Centralized Driver Trips Stream
 final driverTripsProvider = StreamProvider.autoDispose<List<TripModel>>((ref) {
   final currentUser = ref.watch(currentUserProvider);
   if (currentUser == null) return Stream.value([]);
@@ -107,15 +102,13 @@ final driverTripsProvider = StreamProvider.autoDispose<List<TripModel>>((ref) {
       );
 });
 
-// 2. UPDATED to Notifier
 class TripController extends Notifier<AsyncValue<void>> {
-  // 3. Notifiers use build() to set the initial state instead of super()
   @override
   AsyncValue<void> build() {
     return const AsyncValue.data(null);
   }
 
-  // Getter to access the repository using the internal 'ref'
+  // Getter to access the repository using internal 'ref'
   TripRepository get _repository => ref.read(tripRepositoryProvider);
 
   Future<void> requestRide(TripModel trip) async {
@@ -129,63 +122,30 @@ class TripController extends Notifier<AsyncValue<void>> {
   }
 
   /// Driver: Accepts a pending ride
-  Future<void> acceptRide(
-    String tripID,
-    String driverName,
-    String driverID, {
-    bool isScheduled = false,
-  }) async {
+  Future<void> acceptRide(String tripID, String driverName, String driverID, {bool isScheduled = false}) async {
     state = const AsyncValue.loading();
     try {
-      print('DEBUG: acceptRide called for tripID=$tripID, driverID=$driverID');
+      // 1. Delegate the complex transaction to the repository
+      await _repository.runAcceptRideTransaction(
+        tripID: tripID,
+        driverID: driverID,
+        driverName: driverName,
+        isScheduled: isScheduled,
+      );
 
-      // Use a Firestore transaction to atomically claim the trip for this driver.
-      final docRef = FirebaseFirestore.instance.collection('trips').doc(tripID);
-
-      await FirebaseFirestore.instance.runTransaction((tx) async {
-        final snapshot = await tx.get(docRef);
-        if (!snapshot.exists) throw Exception('Trip not found');
-
-        final data = snapshot.data() as Map<String, dynamic>;
-        final currentStatus = data['status'] as String?;
-        final existingDriver = data['driverID'];
-
-        // Only allow claiming if there is no assigned driver and status is pending/scheduled
-        if (existingDriver == null &&
-            (currentStatus == TripStatus.pending.name ||
-                currentStatus == TripStatus.scheduled.name)) {
-          tx.update(docRef, {
-            'status': isScheduled
-                ? TripStatus.scheduled.name
-                : TripStatus.confirmed.name,
-            'driverName': driverName,
-            'driverID': driverID,
-          });
-        } else {
-          throw Exception(
-            'Trip already accepted by another driver or not available.',
-          );
-        }
-      });
-      print('DEBUG: Trip updated to confirmed');
-
-      // Set the driver's mode to busy
+      // 2. Set driver mode to busy
       await ref.read(userRepositoryProvider).updateUser(driverID, {
         'mode': DriverMode.busy.name,
       });
-      print('DEBUG: Driver mode set to busy');
 
-      // Refresh local user state so the pendingTripsProvider instantly cuts off
+      // 3. Refresh user state
       await ref.read(authControllerProvider.notifier).refreshUser();
-      print('DEBUG: User refreshed');
-
-      // Verify the mode was actually set
-      final updatedUser = ref.read(currentUserProvider);
-      print('DEBUG: Updated user mode: ${updatedUser?.mode}');
-
+      
       state = const AsyncValue.data(null);
     } catch (e, st) {
-      print('DEBUG: acceptRide error: $e'.replaceFirst('Exception: ', '').trim());
+      print(
+        'DEBUG: acceptRide error: $e'.replaceFirst('Exception: ', '').trim(),
+      );
       print('DEBUG: Stack trace: $st');
       state = AsyncValue.error(e, st);
     }
@@ -205,149 +165,101 @@ class TripController extends Notifier<AsyncValue<void>> {
   Future<void> startRide(String tripID) async {
     state = const AsyncValue.loading();
     try {
-      await _repository.updateTripData(tripID, {'status': TripStatus.ongoing.name, 'startTime': DateTime.now()});
+      await _repository.updateTripData(tripID, {
+        'status': TripStatus.ongoing.name,
+        'startTime': DateTime.now(),
+      });
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
   }
 
-  /// User/Driver: Cancels the ride with smart constraint rules and re-broadcasting
+  /// Commuter/Driver: Cancelling ride logic
   Future<void> cancelRide(String tripID) async {
     state = const AsyncValue.loading();
     try {
       final currentUser = ref.read(currentUserProvider);
       if (currentUser == null) throw Exception("User not authenticated.");
 
-      // 1. Fetch trip data FIRST to understand the current state
-      final tripDoc = await FirebaseFirestore.instance
-          .collection('trips')
-          .doc(tripID)
-          .get();
-      if (!tripDoc.exists) throw Exception("Trip not found");
-      final tripData = tripDoc.data() as Map<String, dynamic>;
+      // 1. Use the repository to fetch the data instead of Firebase direct
+      final tripData = await _repository.getTripRawData(tripID);
+      if (tripData == null) throw Exception("Trip not found");
 
-      // Determine roles and trip state
+      // ... (Keep all your existing boolean logic and strike constraint rules here exactly as they are) ...
       final bool isDriverCancelling = currentUser.role == UserRole.driver;
       final bool isCommuterCancelling = currentUser.role == UserRole.commuter;
       final bool hasDriverAccepted = tripData['driverID'] != null;
 
-      // 2. Determine if the strike constraint applies
       bool applyConstraint = true;
-
-      // RULE: Free cancellation for commuters if no driver has accepted yet
-      if (isCommuterCancelling && !hasDriverAccepted) {
-        applyConstraint = false;
-      }
+      if (isCommuterCancelling && !hasDriverAccepted) applyConstraint = false;
 
       final now = DateTime.now();
       List<Timestamp> recentCancels = [];
 
-      // 3. Enforce the 15-minute constraint if applicable
+      // Enforce the 15-minute constraint if applicable
       if (applyConstraint) {
         final fifteenMinsAgo = now.subtract(const Duration(minutes: 15));
+        recentCancels = currentUser.cancelHistory?.where((timestamp) {
+          return timestamp.toDate().isAfter(fifteenMinsAgo);
+        }).toList() ?? [];
 
-        recentCancels =
-            currentUser.cancelHistory?.where((timestamp) {
-              return timestamp.toDate().isAfter(fifteenMinsAgo);
-            }).toList() ??
-            [];
-
-        if (recentCancels.length >= 2) {
-          throw Exception("You can cancel a maximum of 2 rides in 15 minutes.");
-        }
+        if (recentCancels.length >= 2) throw Exception("You can cancel a maximum of 2 rides in 15 minutes.");
       }
 
-      // 4. Execute the specific cancellation logic based on WHO is cancelling
       if (isDriverCancelling) {
-        // RULE: Driver cancels. Re-broadcast the trip!
         await _repository.updateTripData(tripID, {
           'status': TripStatus.pending.name,
-          'driverID': FieldValue.delete(),
-          'driverName': FieldValue.delete(),
+          'driverID': null, // Use null instead of FieldValue.delete() for mocks to work smoothly
+          'driverName': null, 
         });
-
-        // Free up this driver so they can receive other broadcasts
-        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {
-          'mode': DriverMode.online.name,
-        });
+        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {'mode': DriverMode.online.name});
       } else if (isCommuterCancelling) {
-        // RULE: Commuter cancels. The trip is dead.
-        await _repository.updateTripData(tripID, {
-          'status': TripStatus.cancelled.name,
-        });
+        await _repository.updateTripData(tripID, {'status': TripStatus.cancelled.name}); // If commuter cancels, the trip is dead
 
-        // If a driver was already attached to this doomed trip, free them up!
+        // If a driver was already attached to this trip, they should be made free
         if (hasDriverAccepted) {
-          await ref.read(userRepositoryProvider).updateUser(
-            tripData['driverID'],
-            {'mode': DriverMode.online.name},
-          );
+          await ref.read(userRepositoryProvider).updateUser(tripData['driverID'], {'mode': DriverMode.online.name});
         }
       }
 
-      // 5. Record the strike ONLY if the constraint applied
+      // Counts towards penalty only if the constraint is applied
       if (applyConstraint) {
         recentCancels.add(Timestamp.fromDate(now));
-        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {
-          'cancelHistory': recentCancels,
-        });
+        await ref.read(userRepositoryProvider).updateUser(currentUser.userID, {'cancelHistory': recentCancels});
       }
 
-      // Sync the local user state
       await ref.read(authControllerProvider.notifier).refreshUser();
-
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
-      rethrow;
+      rethrow; // Ensure the UI catches the strike rule errors!
     }
   }
 
   /// User: Marks their side of the ride as complete
-  Future<void> completeRide({
-    required String tripID,
-    required bool isDriver,
-  }) async {
+  Future<void> completeRide({required String tripID, required bool isDriver}) async {
     state = const AsyncValue.loading();
     try {
-      // Updates either 'driverEnd' or 'commuterEnd' to true based on who called it
       await _repository.updateTripData(tripID, {
         isDriver ? 'driverEnd' : 'commuterEnd': true,
       });
-      // RULE 3: Fetch the trip to check if BOTH parties have marked it as completed
-      final tripDoc = await FirebaseFirestore.instance
-          .collection('trips')
-          .doc(tripID)
-          .get();
-      final tripData = tripDoc.data() as Map<String, dynamic>;
+      
+      // Use the repository to check the status
+      final tripData = await _repository.getTripRawData(tripID);
+      if (tripData == null) throw Exception("Trip not found");
 
       final driverEnd = tripData['driverEnd'] ?? false;
       final commuterEnd = tripData['commuterEnd'] ?? false;
 
-      // If both are true, finalize the ride and free the driver
       if (driverEnd && commuterEnd) {
-        await _repository.updateTripData(tripID, {
-          'status': TripStatus.completed.name,
-        });
-
-        // Revert the driver back to online so they can accept new rides
+        await _repository.updateTripData(tripID, {'status': TripStatus.completed.name});
         final assignedDriverID = tripData['driverID'];
         if (assignedDriverID != null) {
-          await ref.read(userRepositoryProvider).updateUser(assignedDriverID, {
-            'mode': DriverMode.online.name,
-          });
+          await ref.read(userRepositoryProvider).updateUser(assignedDriverID, {'mode': DriverMode.online.name});
         }
-
-        // Trigger Background Cleanup ---
-        //   final commuterID = tripData['commuterID'];
-        //   if (commuterID != null)
-        //     _repository.cleanupOldTrips(commuterID, 'commuterID');
-        //   if (assignedDriverID != null)
-        //     _repository.cleanupOldTrips(assignedDriverID, 'driverID');
       }
 
-      // Sync the state (especially critical if this user is the driver transitioning back to online)
       await ref.read(authControllerProvider.notifier).refreshUser();
       state = const AsyncValue.data(null);
     } catch (e, st) {
@@ -370,8 +282,14 @@ class TripController extends Notifier<AsyncValue<void>> {
   Future<void> cancelScheduledRideByCommuter(TripModel trip) async {
     try {
       await _repository.updateTripData(trip.tripID, {
-        'status': TripStatus.cancelled.name, 
+        'status': TripStatus.cancelled.name,
       });
+      // Free the driver if one was assigned
+      if (trip.driverID != null) {
+        await ref.read(userRepositoryProvider).updateUser(trip.driverID!, {
+          'mode': DriverMode.online.name,
+        });
+      }
     } catch (e) {
       print('Error cancelling by commuter: $e');
     }
@@ -379,13 +297,30 @@ class TripController extends Notifier<AsyncValue<void>> {
 
   Future<void> cancelScheduledRideByDriver(TripModel trip) async {
     try {
-      // 1. Unassign the driver, but leave the status as 'scheduled' so it goes back to the pool
+      // Unassign the driver, but leave the status as 'scheduled' so it goes back to the pool
       await _repository.updateTripData(trip.tripID, {
         'driverID': null,
         'driverName': null,
       });
+      // Free the driver who just cancelled
+      if (trip.driverID != null) {
+        await ref.read(userRepositoryProvider).updateUser(trip.driverID!, {
+          'mode': DriverMode.online.name,
+        });
+      }
     } catch (e) {
       print('Error cancelling by driver: $e');
+    }
+  }
+
+  // Auto-cancels an immediate ride if no driver accepts within 15 minutes
+  Future<void> autoCancelExpiredRide(String tripID) async {
+    try {
+      await _repository.updateTripData(tripID, {
+        'status': TripStatus.cancelled.name,
+      });
+    } catch (e) {
+      print('Error auto-cancelling ride: $e');
     }
   }
 }

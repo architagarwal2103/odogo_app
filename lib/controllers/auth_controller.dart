@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:odogo_app/models/user_model.dart';
+import 'package:odogo_app/repositories/user_repository.dart';
+import 'package:odogo_app/services/email_link_auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../services/email_link_auth_service.dart'; // Adjust if needed
-import '../repositories/user_repository.dart';
-import '../models/user_model.dart';
 
-// --- Auth States ---
+// Auth States
 abstract class AuthState {}
 
 class AuthInitial extends AuthState {}
@@ -32,11 +32,13 @@ class AuthError extends AuthState {
   AuthError(this.message);
 }
 
-// --- Providers ---
+// Providers
 final userRepositoryProvider = Provider((ref) => UserRepository());
 
 // [MODIFIED FOR TESTING 1/3]: Added this provider so we can mock the email service
-final emailAuthServiceProvider = Provider((ref) => EmailOtpAuthService.instance);
+final emailAuthServiceProvider = Provider(
+  (ref) => EmailOtpAuthService.instance,
+);
 
 // 1. UPDATED to NotifierProvider
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(() {
@@ -52,13 +54,13 @@ final currentUserProvider = Provider<UserModel?>((ref) {
   return null;
 });
 
-// --- Controller ---
-// 2. UPDATED to Notifier
+// Controllers
+// Notifier
 class AuthController extends Notifier<AuthState> {
   // [MODIFIED FOR TESTING 2/3]: Changed from hardcoded instance to reading the provider
   EmailOtpAuthService get _authService => ref.read(emailAuthServiceProvider);
 
-  // 3. Notifiers use a build() method to set the initial state
+  // Notifiers use a build() method to set the initial state
   @override
   AuthState build() {
     // Fire off the session check immediately after building
@@ -66,7 +68,7 @@ class AuthController extends Notifier<AuthState> {
     return AuthInitial();
   }
 
-  // 4. We can access 'ref' directly inside a Notifier to read the repo!
+  // We can access 'ref' directly inside a Notifier to read the repo!
   UserRepository get _userRepo => ref.read(userRepositoryProvider);
 
   Future<void> _checkSavedSession() async {
@@ -107,33 +109,7 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-   // Future<void> verifyOtp(String email, String otp) async {
-  //   state = AuthLoading();
-  //   try {
-  //     final isValid = _authService.verifyOtp(email: email, otp: otp);
-
-  //     if (!isValid) {
-  //       state = AuthError("Invalid or expired OTP. Please try again.");
-  //       return;
-  //     }
-
-  //     // Save to local storage so they don't have to login next time
-  //     final prefs = await SharedPreferences.getInstance();
-  //     await prefs.setString('odogo_user_email', email);
-
-  //     final userModel = await _userRepo.getUserByEmail(email);
-
-  //     if (userModel != null) {
-  //       state = AuthAuthenticated(userModel);
-  //     } else {
-  //       state = AuthNeedsProfileSetup(email);
-  //     }
-  //   } catch (e) {
-  //     state = AuthError(e.toString());
-  //   }
-  // }
-
-  // Modify your existing verifyOtp method to save the email to the linked list
+  // Save the email to the linked list
   Future<void> verifyOtp(String email, String otp) async {
     state = AuthLoading();
     try {
@@ -151,7 +127,7 @@ class AuthController extends Notifier<AuthState> {
 
       await prefs.setString('odogo_user_email', cleanEmail);
 
-      // SAFELY load the list as a mutable copy
+      // Loading the list as a mutable copy
       List<String> linked = List<String>.from(
         prefs.getStringList('odogo_linked_accounts') ?? [],
       );
@@ -174,50 +150,46 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  // Add this new method to AuthController
   Future<void> completeProfileSetup(UserModel newUser) async {
     state = AuthLoading();
     try {
-      // 1. Save the new user to Firestore
+      // Save the new user to Firestore
       await _userRepo.createUser(newUser);
 
-      // 2. Officially log them in so the Router takes them to the Map!
+      // Officially log them in so the Router takes them to the Map.
       state = AuthAuthenticated(newUser);
     } catch (e) {
       state = AuthError("Failed to save profile: $e");
     }
   }
 
-  // Future<void> logout() async {
-  //   // 1. Wipe the saved session from the phone's hard drive
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.remove('odogo_user_email');
+  /**
+    If the user is on the Login Screen and closes the app, 
+    the next time they open it, _checkSavedSession will find their old email and safely
+    log them back into their previous account's Home Screen.
+  */
 
-  //   // 2. Reset the app state so GoRouter kicks the user to /login
-  //   state = AuthInitial();
-  // }
-  // When a user logs out, remove them from the linked list
+  // When a user logs out, we remove them from the linked list
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Get the active email BEFORE we wipe it
+    // Getting the active email before wiping it
     final activeEmail = prefs.getString('odogo_user_email');
     List<String> linked = List<String>.from(
       prefs.getStringList('odogo_linked_accounts') ?? [],
     );
 
     if (activeEmail != null) {
-      // 2. Strictly hunt down and destroy the ghost account from the list
+      // Removing ghost accounts from the list
       linked.removeWhere(
         (e) => e.trim().toLowerCase() == activeEmail.trim().toLowerCase(),
       );
       await prefs.setStringList('odogo_linked_accounts', linked);
     }
 
-    // 3. NEW ROUTING LOGIC: Check if there are other accounts left!
+    // Checking if there are other accounts left
     if (linked.isNotEmpty) {
-      // If other accounts exist, silently switch to the most recent one.
-      // GoRouter will automatically teleport them to that account's Home Screen!
+      // If other accounts exist, silently switch to the most recent one's home screen
       await switchAccount(linked.last);
     } else {
       // If this was the last account on the device, completely wipe the session and go to Login.
@@ -226,26 +198,23 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  // --- ADD THIS BRAND NEW METHOD ---
   Future<void> startAddingNewAccount() async {
-    // 1. We change the state to AuthInitial.
-    // GoRouter will instantly teleport the user to the Landing/Login Page.
     state = AuthInitial();
-
-    // MAGIC: Notice we DID NOT wipe SharedPreferences!
-    // If the user is on the Login Screen and closes the app, the next time
-    // they open it, _checkSavedSession will find their old email and safely
-    // log them back into their previous account's Home Screen.
   }
 
   Future<void> deleteAccount(String email, String otp) async {
+    // Save the previous state so we can safely revert if the OTP is wrong
+    final previousState = state;
     state = AuthLoading();
     try {
-      final verified = _authService.verifyOtp( // Also uses the getter now
+      final verified = _authService.verifyOtp(
+        // Also uses the getter now
         email: email,
         otp: otp,
       );
       if (!verified) {
+        // Revert to previous state to avoid locking the user out due to a wrong OTP
+        state = previousState;
         state = AuthError("Invalid or expired OTP. Please try again.");
         return;
       }
@@ -255,7 +224,7 @@ class AuthController extends Notifier<AuthState> {
 
       final prefs = await SharedPreferences.getInstance();
 
-      // SAFELY load and destroy the ghost account from the device
+      // Loading and destroying ghost account from device
       List<String> linked = List<String>.from(
         prefs.getStringList('odogo_linked_accounts') ?? [],
       );
@@ -264,7 +233,6 @@ class AuthController extends Notifier<AuthState> {
       );
       await prefs.setStringList('odogo_linked_accounts', linked);
 
-      // 3. NEW ROUTING LOGIC: Apply the same smart routing for account deletion
       if (linked.isNotEmpty) {
         await switchAccount(linked.last);
       } else {
@@ -272,11 +240,12 @@ class AuthController extends Notifier<AuthState> {
         state = AuthInitial();
       }
     } catch (e) {
+      state = previousState; // Revert state on any error
       state = AuthError("Failed to delete account: $e");
     }
   }
 
-  // Call this whenever the user updates their profile so the app's global state always has the freshest data.
+  // To call this whenever the user updates their profile so the app's global state always has the freshest data.
   Future<void> refreshUser() async {
     final prefs = await SharedPreferences.getInstance();
     final savedEmail = prefs.getString('odogo_user_email');
@@ -296,20 +265,19 @@ class AuthController extends Notifier<AuthState> {
     return prefs.getStringList('odogo_linked_accounts') ?? [];
   }
 
-  /// Switches the active account and triggers a UI rebuild
+  // Switches the active account and triggers a UI rebuild
   Future<void> switchAccount(String newEmail) async {
     state = AuthLoading();
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // 1. Change the active account identifier on the hard drive
+      // Change the active account identifier on the hard drive
       await prefs.setString('odogo_user_email', newEmail);
 
-      // 2. Fetch the newly selected user's profile from Firestore
+      // Fetch the newly selected user's profile from Firestore
       final userModel = await _userRepo.getUserByEmail(newEmail);
 
-      // 3. Update the global app state.
-      // GoRouter will automatically refresh the screen with the new user!
+      // Update the global app state.
       if (userModel != null) {
         state = AuthAuthenticated(userModel);
       } else {
@@ -323,11 +291,11 @@ class AuthController extends Notifier<AuthState> {
   Future<void> abortSignup() async {
     final prefs = await SharedPreferences.getInstance();
 
-    // 1. Get the email of the incomplete account
+    // Get the email of the incomplete account
     final activeEmail = prefs.getString('odogo_user_email');
 
     if (activeEmail != null) {
-      // 2. Remove it from linked accounts so it doesn't become a ghost account
+      // Removing it from linked accounts so that it doesn't become a ghost account
       List<String> linked = List<String>.from(
         prefs.getStringList('odogo_linked_accounts') ?? [],
       );
@@ -337,10 +305,10 @@ class AuthController extends Notifier<AuthState> {
       await prefs.setStringList('odogo_linked_accounts', linked);
     }
 
-    // 3. Wipe the active session
+    // Wipe the active session
     await prefs.remove('odogo_user_email');
 
-    // 4. Drop them at the Landing Page WITHOUT auto-switching to previous accounts
+    // Drop them at the Landing Page without auto-switching to previous accounts
     state = AuthInitial();
   }
 }

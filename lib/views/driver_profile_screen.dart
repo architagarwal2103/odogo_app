@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'personal_details_screen.dart'; 
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'personal_details_screen.dart';
 import 'driver_documents_profile_page.dart';
-// import 'location_sharing_screen.dart';
 import 'commute_alerts_screen.dart';
 import 'switch_account_screen.dart';
 import 'account_deletion_screen.dart';
 import 'sign_out_screen.dart';
 import 'edit_name_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/auth_controller.dart';
 
 class BoundedBouncingScrollPhysics extends BouncingScrollPhysics {
   const BoundedBouncingScrollPhysics({super.parent});
@@ -37,7 +36,6 @@ class DriverProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // <-- Added WidgetRef
     // FETCH LIVE USER DATA
     final user = ref.watch(currentUserProvider);
     return Scaffold(
@@ -58,7 +56,7 @@ class DriverProfileScreen extends ConsumerWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      user?.name ?? 'Loading...', // <-- DYNAMIC NAME HERE
+                      user?.name ?? 'Loading...',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -92,7 +90,7 @@ class DriverProfileScreen extends ConsumerWidget {
               ),
             ),
 
-            // --- SCROLLABLE LIST SECTION ---
+            // SCROLLABLE LIST SECTION
             Expanded(
               child: ScrollConfiguration(
                 behavior: ScrollBehavior().copyWith(overscroll: false),
@@ -102,7 +100,7 @@ class DriverProfileScreen extends ConsumerWidget {
                     children: [
                       const SizedBox(height: 10),
 
-                      // 1. THE NEW PERSONAL DETAILS BUTTON
+                      // Personal DETAILS BUTTON
                       _buildTile(
                         context,
                         Icons.badge_outlined,
@@ -123,7 +121,7 @@ class DriverProfileScreen extends ConsumerWidget {
                         color: Colors.black12,
                       ),
 
-                      // 2. DRIVER SPECIFIC: DOCUMENTS
+                      // DRIVER SPECIFIC: DOCUMENTS
                       _buildTile(
                         context,
                         Icons.description_outlined,
@@ -164,7 +162,6 @@ class DriverProfileScreen extends ConsumerWidget {
                       //   thickness: 1,
                       //   color: Colors.black12,
                       // ),
-
                       _buildTile(
                         context,
                         Icons.notifications_none,

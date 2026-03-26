@@ -103,9 +103,9 @@
 // }
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/auth_controller.dart';
-import '../controllers/user_controller.dart';
-import '../data/iitk_dropoff_locations.dart'; 
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/controllers/user_controller.dart';
+import 'package:odogo_app/data/iitk_dropoff_locations.dart';
 
 class EditWorkAddressScreen extends ConsumerStatefulWidget {
   const EditWorkAddressScreen({super.key});
@@ -150,9 +150,9 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
     await ref
         .read(userControllerProvider.notifier)
         .updateWorkAddress(_addressController.text.trim());
-    
+
     if (!mounted) return;
-    
+
     setState(() => _isLoading = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -163,76 +163,101 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
     Navigator.pop(context);
   }
 
-  // --- THE UPDATED BOTTOM SHEET SELECTOR ---
   Future<void> _openAddressSelector() async {
     String localSearchText = '';
-    
+
     final selected = await showModalBottomSheet<dynamic>(
       context: context,
-      isScrollControlled: true, 
-      backgroundColor: Colors.transparent, // 1. Make the raw background transparent
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
-            
-            List<DropoffLocation> sheetFiltered = localSearchText.isEmpty 
-              ? iitkDropoffLocations 
-              : iitkDropoffLocations.where((loc) => 
-                  loc.name.toLowerCase().contains(localSearchText.toLowerCase()) || 
-                  loc.matches(localSearchText) 
-                ).toList();
+            List<DropoffLocation> sheetFiltered = localSearchText.isEmpty
+                ? iitkDropoffLocations
+                : iitkDropoffLocations
+                      .where(
+                        (loc) =>
+                            loc.name.toLowerCase().contains(
+                              localSearchText.toLowerCase(),
+                            ) ||
+                            loc.matches(localSearchText),
+                      )
+                      .toList();
 
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom), 
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
               child: Container(
-                // 2. THE MAGIC BLACK BANNER
                 decoration: const BoxDecoration(
-                  color: Colors.black, 
+                  color: Colors.black,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: SafeArea(
                   bottom: false,
                   child: Container(
-                    // 3. THE ACTUAL WHITE SHEET
                     height: MediaQuery.of(context).size.height * 0.65,
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Padding(
                           padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-                          child: Text('Set Work Address', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                          child: Text(
+                            'Set Work Address',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
-                        
+
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           child: TextField(
                             autofocus: true,
                             decoration: InputDecoration(
                               hintText: 'Search campus address...',
-                              prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Colors.black54,
+                              ),
                               filled: true,
                               fillColor: Colors.grey[200],
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 0,
+                              ),
                             ),
                             onChanged: (val) {
                               setSheetState(() => localSearchText = val);
                             },
                           ),
                         ),
-                        
-                        // REMOVED custom string input tile here. Added "No Results" message.
+
                         if (localSearchText.isNotEmpty && sheetFiltered.isEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20),
                             child: Center(
                               child: Text(
                                 'No locations found matching "$localSearchText"',
-                                style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ),
                           ),
@@ -244,9 +269,13 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
                             itemBuilder: (context, index) {
                               final location = sheetFiltered[index];
                               return ListTile(
-                                leading: const Icon(Icons.work_outline, color: Colors.black54),
+                                leading: const Icon(
+                                  Icons.work_outline,
+                                  color: Colors.black54,
+                                ),
                                 title: Text(location.name),
-                                onTap: () => Navigator.pop(sheetContext, location), 
+                                onTap: () =>
+                                    Navigator.pop(sheetContext, location),
                               );
                             },
                           ),
@@ -257,13 +286,13 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
                 ),
               ),
             );
-          }
+          },
         );
       },
     );
 
     if (!mounted || selected == null) return;
-    
+
     setState(() {
       if (selected is String) {
         _addressController.text = selected;
@@ -276,7 +305,7 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -311,12 +340,15 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              
+
               GestureDetector(
                 onTap: _openAddressSelector,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
@@ -328,11 +360,17 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          _addressController.text.isEmpty ? 'Search campus locations...' : _addressController.text,
+                          _addressController.text.isEmpty
+                              ? 'Search campus locations...'
+                              : _addressController.text,
                           style: TextStyle(
                             fontSize: 16,
-                            color: _addressController.text.isEmpty ? Colors.grey[600] : Colors.black87,
-                            fontWeight: _addressController.text.isEmpty ? FontWeight.normal : FontWeight.w600,
+                            color: _addressController.text.isEmpty
+                                ? Colors.grey[600]
+                                : Colors.black87,
+                            fontWeight: _addressController.text.isEmpty
+                                ? FontWeight.normal
+                                : FontWeight.w600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -342,9 +380,9 @@ class _EditWorkAddressScreenState extends ConsumerState<EditWorkAddressScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               SizedBox(
                 width: double.infinity,
                 height: 56,

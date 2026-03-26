@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Added Riverpod
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/auth_controller.dart';
 import '../models/vehicle_model.dart';
 
-// 2. Upgraded to ConsumerStatefulWidget
 class DriverDocumentUploadScreen extends ConsumerStatefulWidget {
   const DriverDocumentUploadScreen({super.key});
 
@@ -79,7 +78,9 @@ class _DriverDocumentUploadScreenState
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error uploading docs: $e'.replaceFirst('Exception: ', '').trim()),
+          content: Text(
+            'Error uploading docs: $e'.replaceFirst('Exception: ', '').trim(),
+          ),
           backgroundColor: Colors.red,
         ),
       );

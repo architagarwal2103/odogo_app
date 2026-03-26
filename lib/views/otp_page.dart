@@ -263,8 +263,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/auth_controller.dart';
-import '../models/enums.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/models/enums.dart';
 
 class OtpPage extends ConsumerStatefulWidget {
   final bool isDriver;
@@ -359,7 +359,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
       _isLoading = true;
     });
 
-    // 1. Tell Controller to Verify & Save
+    // Tell Controller to Verify & Save
     await ref
         .read(authControllerProvider.notifier)
         .verifyOtp(widget.email, otp);
@@ -374,16 +374,13 @@ class _OtpPageState extends ConsumerState<OtpPage> {
       _isLoading = false;
     });
 
-    // 2. Handle the Result cleanly
+    // Handle the Result cleanly
     if (authState is AuthError) {
       _showError(authState.message);
     } else if (authState is AuthNeedsProfileSetup) {
       context.go(
         '/account-not-found',
-        extra: {
-          'isDriver': widget.isDriver,
-          'email': widget.email,
-        },
+        extra: {'isDriver': widget.isDriver, 'email': widget.email},
       );
     } else if (authState is AuthAuthenticated) {
       await _handleAuthenticated(authState);
@@ -395,7 +392,7 @@ class _OtpPageState extends ConsumerState<OtpPage> {
       _isLoading = true;
     });
 
-    // 7. Update resend to use the controller as well
+    // Update resend to use the controller as well
     await ref.read(authControllerProvider.notifier).sendOtp(widget.email);
 
     final authState = ref.read(authControllerProvider);

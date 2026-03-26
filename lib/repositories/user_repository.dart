@@ -4,16 +4,12 @@ import 'package:odogo_app/models/user_model.dart';
 class UserRepository {
   final FirebaseFirestore _firestore;
 
-  // We pass the instance in the constructor for easier testing later,
-  // but provide a default instance for normal app use.
   UserRepository({FirebaseFirestore? firestore})
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  // The collection reference makes our code cleaner
   CollectionReference get _users => _firestore.collection('users');
 
-  /// Fetches a user by their Firebase Auth UID.
-  /// Returns null if the user doesn't exist in the database yet.
+  // Fetches a user by their Firebase Auth UID; returns null if the user doesn't exist in the database yet.
   Future<UserModel?> getUser(String uid) async {
     try {
       final doc = await _users.doc(uid).get();
@@ -27,7 +23,7 @@ class UserRepository {
     }
   }
 
-  /// Fetches a user by their email address.
+  // Fetches a user by their email address.
   Future<UserModel?> getUserByEmail(String email) async {
     try {
       final snapshot = await _users
@@ -41,13 +37,16 @@ class UserRepository {
       }
       return null;
     } catch (e) {
-      print('Error fetching user by email: $e'.replaceFirst('Exception: ', '').trim());
+      print(
+        'Error fetching user by email: $e'
+            .replaceFirst('Exception: ', '')
+            .trim(),
+      );
       throw Exception('Failed to fetch user profile.');
     }
   }
 
-  /// Creates a new user document in Firestore.
-  /// Typically called right after a successful OTP/Email verification.
+  // Creates a new user document in Firestore.
   Future<void> createUser(UserModel user) async {
     try {
       await _users.doc(user.userID).set(user.toJson());
@@ -57,8 +56,7 @@ class UserRepository {
     }
   }
 
-  /// Updates specific fields for an existing user.
-  /// Example usage: updateUser(uid, {'numCancels': 2})
+  // Updates specific fields for an existing user.
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
     try {
       await _users.doc(uid).update(data);
@@ -77,7 +75,7 @@ class UserRepository {
       throw Exception('Failed to delete user profile.');
     }
   }
-  
+
   /// Streams the user's data so the UI updates automatically
   /// if their profile changes (e.g., verificationStatus changes to true).
   Stream<UserModel?> streamUser(String uid) {

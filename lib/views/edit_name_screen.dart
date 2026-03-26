@@ -122,12 +122,11 @@
 //   }
 // }
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Added
-import '../controllers/auth_controller.dart'; // Added
-import '../controllers/user_controller.dart'; // Added
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/controllers/user_controller.dart';
 
 class EditNameScreen extends ConsumerStatefulWidget {
-  // Changed to Consumer
   const EditNameScreen({super.key});
 
   @override

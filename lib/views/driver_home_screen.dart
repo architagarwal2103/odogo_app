@@ -59,8 +59,12 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
   @override
   void initState() {
     super.initState();
-
     _startLocationStream();
+
+    // Force sync the local user state when the home screen boots up so it catches the 'online' status set by the commuter.
+    Future.microtask(
+      () => ref.read(authControllerProvider.notifier).refreshUser(),
+    );
   }
 
   Future<void> _startLocationStream() async {
@@ -275,16 +279,50 @@ class _DriverHomeScreenState extends ConsumerState<DriverHomeScreen> {
             }
           });
         }
+
+        // Commuter cancelled a scheduled ride
+        if (oldTrip.status == TripStatus.scheduled &&
+            newTrip.status == TripStatus.cancelled) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('The commuter cancelled the scheduled ride.'),
+              backgroundColor: Colors.redAccent,
+              duration: Duration(seconds: 4),
+            ),
+          );
+
+          NotificationService().showNotification(
+            title: 'Ride Cancelled',
+            body: 'The commuter has cancelled their scheduled ride.',
+          );
+        }
+
+        // Ride Successfully Completes (Ongoing -> Completed)
+        if (oldTrip.status == TripStatus.ongoing &&
+            newTrip.status == TripStatus.completed) {
+          // Fetch the updated user profile from Firestore because the backend  just switched the driver's mode to 'online'!
+          ref.read(authControllerProvider.notifier).refreshUser();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Trip Completed! You are back online.'),
+              backgroundColor: Color(0xFF66D2A3),
+            ),
+          );
+
+          NotificationService().showNotification(
+            title: 'Trip Completed',
+            body:
+                'Great job! The ride is complete and you are back online to receive new requests.',
+          );
+        }
       }
     });
 
     // WATCH THE BACKEND FOR REAL-TIME STATUS
 
     final currentUser = ref.watch(currentUserProvider);
-
     final _isOnline = currentUser?.mode == DriverMode.online;
-
-    // --- THE REAL BACKEND CONNECTION ---
 
     // Watch the stream of pending trips
 

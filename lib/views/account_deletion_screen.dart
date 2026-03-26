@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../controllers/auth_controller.dart';
-import '../services/email_link_auth_service.dart'; // Needed for stealth OTP
+import '../services/email_link_auth_service.dart';
 import 'account_deletion_otp_screen.dart';
 
 class AccountDeletionScreen extends ConsumerStatefulWidget {
@@ -16,7 +16,7 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
   bool _isLoading = false;
 
   Future<void> _requestDeletionOtp() async {
-    // 1. Get the current authenticated email
+    // Get the current authenticated email
     final authState = ref.read(authControllerProvider);
     if (authState is! AuthAuthenticated) return;
 
@@ -27,8 +27,8 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
     });
 
     try {
-      // 2. STEALTH MODE: Use the raw service to send the OTP.
-      // This prevents GoRouter from panicking and destroying the screen!
+      // Use the raw service to send the OTP.
+      // This prevents GoRouter from destroying the screen.
       await EmailOtpAuthService.instance.sendOtp(email: userEmail);
 
       if (!mounted) return;
@@ -36,7 +36,7 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
         _isLoading = false;
       });
 
-      // 3. Move to OTP screen
+      // Move to OTP screen
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -51,7 +51,9 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to send OTP: $e'.replaceFirst('Exception: ', '').trim()),
+          content: Text(
+            'Failed to send OTP: $e'.replaceFirst('Exception: ', '').trim(),
+          ),
           backgroundColor: Colors.red,
         ),
       );

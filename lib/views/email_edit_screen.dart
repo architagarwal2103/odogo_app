@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Added Riverpod
-import '../controllers/auth_controller.dart'; // Tapping into your auth controller
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
 
 class EmailEditScreen extends ConsumerStatefulWidget {
   const EmailEditScreen({super.key});
@@ -19,7 +19,6 @@ class _EmailEditScreenState extends ConsumerState<EmailEditScreen> {
     _loadEmail();
   }
 
-  // The new Riverpod-powered fetch function
   void _loadEmail() {
     // Read the current user state directly from your provider
     final activeUser = ref.read(currentUserProvider);

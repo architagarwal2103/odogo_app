@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Needed to wipe the database
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../controllers/auth_controller.dart';
 import '../services/email_link_auth_service.dart';
 
@@ -54,7 +54,7 @@ class _AccountDeletionOtpScreenState
     });
 
     try {
-      // 1. STEALTH MODE: Verify OTP quietly
+      // Verify OTP quietly
       final verified = EmailOtpAuthService.instance.verifyOtp(
         email: widget.contactInfo,
         otp: otp,
@@ -74,7 +74,7 @@ class _AccountDeletionOtpScreenState
         return;
       }
 
-      // 2. Erase the user from Firebase
+      // Erase the user from Firebase
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.contactInfo)
@@ -82,7 +82,7 @@ class _AccountDeletionOtpScreenState
 
       if (!mounted) return;
 
-      // 3. Show success message BEFORE wiping the state
+      // Show success message BEFORE wiping the state
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Account permanently deleted.'),
@@ -90,11 +90,8 @@ class _AccountDeletionOtpScreenState
           duration: Duration(seconds: 4),
         ),
       );
-
-      // 4. Pull the plug.
-      // This wipes the hard drive and triggers GoRouter to cleanly slide you back to the Landing Page.
       Navigator.of(context).popUntil((route) => route.isFirst);
-      ref.read(authControllerProvider.notifier).logout();
+      await ref.read(authControllerProvider.notifier).logout();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -102,7 +99,11 @@ class _AccountDeletionOtpScreenState
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to delete account: $e'.replaceFirst('Exception: ', '').trim()),
+          content: Text(
+            'Failed to delete account: $e'
+                .replaceFirst('Exception: ', '')
+                .trim(),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -126,7 +127,6 @@ class _AccountDeletionOtpScreenState
         ),
       ),
       body: SafeArea(
-        // 1. ADD THIS WRAPPER
         child: SingleChildScrollView(
           child: Padding(
             padding: const EdgeInsets.all(24.0),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../controllers/auth_controller.dart'; 
+import 'package:odogo_app/controllers/auth_controller.dart';
 
 class SignInPage extends ConsumerStatefulWidget {
   final bool isDriver;
@@ -64,7 +64,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
     });
 
     try {
-      // 1. Tell the controller to send the OTP
+      // Tell the controller to send the OTP
       await ref.read(authControllerProvider.notifier).sendOtp(email);
 
       if (!mounted) return;
@@ -73,7 +73,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
         _isLoading = false;
       });
 
-      // 2. FORCE THE ROUTE USING .push() 
+      // Forcing the route using .push()
       // This maintains the navigation stack properly
       context.push(
         '/otp',
@@ -83,14 +83,13 @@ class _SignInPageState extends ConsumerState<SignInPage> {
           'email': email,
         },
       );
-      
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
       // Show explicit red error if it fails
-      _showError(e.toString()); 
+      _showError(e.toString());
     }
   }
 
@@ -109,7 +108,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
             } else {
               context.go('/login');
             }
-          }
+          },
         ),
       ),
       body: SafeArea(

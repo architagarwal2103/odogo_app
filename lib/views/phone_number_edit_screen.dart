@@ -131,11 +131,10 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Added Riverpod
-import '../controllers/auth_controller.dart'; // 2. Added Auth Controller
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
 import 'profile_otp_verification_screen.dart';
 
-// 3. Upgraded to ConsumerStatefulWidget
 class PhoneNumberEditScreen extends ConsumerStatefulWidget {
   const PhoneNumberEditScreen({super.key});
 
@@ -150,7 +149,7 @@ class _PhoneNumberEditScreenState extends ConsumerState<PhoneNumberEditScreen> {
   @override
   void initState() {
     super.initState();
-    // 4. Pre-fill the controller with the user's current phone number
+    // Pre-fill the controller with the user's current phone number
     final user = ref.read(currentUserProvider);
     if (user != null) {
       // Safely strip '+91' if it somehow got saved in the DB, to prevent UI duplication
@@ -179,7 +178,7 @@ class _PhoneNumberEditScreenState extends ConsumerState<PhoneNumberEditScreen> {
 
     FocusScope.of(context).unfocus();
 
-    // 5. Route to OTP screen (Database update happens LATER in your OTP screen)
+    // Route to OTP screen
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -191,7 +190,7 @@ class _PhoneNumberEditScreenState extends ConsumerState<PhoneNumberEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 6. Watch the current user for the AppBar name
+    // Watch the current user for the AppBar name
     final user = ref.watch(currentUserProvider);
 
     return Scaffold(
@@ -203,7 +202,6 @@ class _PhoneNumberEditScreenState extends ConsumerState<PhoneNumberEditScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        // 7. Dynamic AppBar Title
         title: Text(
           user?.name ?? 'Profile',
           style: const TextStyle(
@@ -280,7 +278,6 @@ class _PhoneNumberEditScreenState extends ConsumerState<PhoneNumberEditScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      // 8. Updated Button Text
                       child: const Text(
                         'Verify Phone Number',
                         style: TextStyle(

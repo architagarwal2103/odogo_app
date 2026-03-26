@@ -13,7 +13,8 @@ class TripEndRequestScreen extends ConsumerStatefulWidget {
   const TripEndRequestScreen({super.key, required this.tripID});
 
   @override
-  ConsumerState<TripEndRequestScreen> createState() => _TripEndRequestScreenState();
+  ConsumerState<TripEndRequestScreen> createState() =>
+      _TripEndRequestScreenState();
 }
 
 class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
@@ -31,7 +32,9 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
       permission = await Geolocator.requestPermission();
     }
 
-    if (!mounted || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (!mounted ||
+        permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       return;
     }
 
@@ -39,7 +42,9 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
     if (!serviceEnabled || !mounted) return;
 
     try {
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       if (!mounted) return;
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
@@ -53,20 +58,20 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
     final trip = activeTripAsync.value;
     final driverInfoAsync = ref.watch(userInfoProvider(trip?.driverID ?? ''));
     final driverPhone = driverInfoAsync.value?.phoneNo;
-    final dropoffFromTrip = trip == null ? null : DropoffLocation.fromName(trip.endLocName);
-    final dropoffPoint = dropoffFromTrip == null ? null : LatLng(dropoffFromTrip.latitude, dropoffFromTrip.longitude);
+    final dropoffFromTrip = trip == null
+        ? null
+        : DropoffLocation.fromName(trip.endLocName);
+    final dropoffPoint = dropoffFromTrip == null
+        ? null
+        : LatLng(dropoffFromTrip.latitude, dropoffFromTrip.longitude);
     final mapCenter = _currentLocation ?? dropoffPoint;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. Functional Dark Map
           if (mapCenter != null)
             FlutterMap(
-              options: MapOptions(
-                initialCenter: mapCenter,
-                initialZoom: 16.5,
-              ),
+              options: MapOptions(initialCenter: mapCenter, initialZoom: 16.5),
               children: [
                 TileLayer(
                   urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -74,10 +79,26 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
                   tileBuilder: (context, tileWidget, tile) {
                     return ColorFiltered(
                       colorFilter: const ColorFilter.matrix([
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        0,       0,       0,       1, 0,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
                       ]),
                       child: tileWidget,
                     );
@@ -88,24 +109,36 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
                     if (_currentLocation != null)
                       Marker(
                         point: _currentLocation!,
-                        child: const Icon(Icons.my_location, color: Color(0xFF66D2A3), size: 36),
+                        child: const Icon(
+                          Icons.my_location,
+                          color: Color(0xFF66D2A3),
+                          size: 36,
+                        ),
                       ),
                     if (dropoffPoint != null)
                       Marker(
                         point: dropoffPoint,
-                        child: const Icon(Icons.location_on, color: Colors.redAccent, size: 42),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.redAccent,
+                          size: 42,
+                        ),
                       ),
                   ],
                 ),
               ],
             )
           else
-            const Center(child: CircularProgressIndicator(color: Color(0xFF66D2A3))),
+            const Center(
+              child: CircularProgressIndicator(color: Color(0xFF66D2A3)),
+            ),
 
-          // 2. Synced OdoGo Logo Header
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24.0,
+                vertical: 16.0,
+              ),
               child: Row(
                 children: [
                   Container(
@@ -114,7 +147,11 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
                       color: const Color(0xFF66D2A3),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.electric_rickshaw, color: Colors.black, size: 20),
+                    child: const Icon(
+                      Icons.electric_rickshaw,
+                      color: Colors.black,
+                      size: 20,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   const Text(
@@ -132,7 +169,6 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
             ),
           ),
 
-          // 3. Bottom Confirmation Card
           Positioned(
             bottom: 30,
             left: 16,
@@ -163,39 +199,53 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // Primary Confirmation Button
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
-                        await ref.read(tripControllerProvider.notifier).completeRide(
-                          tripID: widget.tripID,
-                          isDriver: false, 
-                        );
+                        await ref
+                            .read(tripControllerProvider.notifier)
+                            .completeRide(
+                              tripID: widget.tripID,
+                              isDriver: false,
+                            );
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Trip Completed! Thank you for riding with OdoGo.'),
+                              content: Text(
+                                'Trip Completed! Thank you for riding with OdoGo.',
+                              ),
                               backgroundColor: Color(0xFF66D2A3),
                             ),
                           );
-                          Navigator.of(context).popUntil((route) => route.isFirst);
+                          Navigator.of(
+                            context,
+                          ).popUntil((route) => route.isFirst);
                         }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF66D2A3),
                         foregroundColor: Colors.black,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         elevation: 0,
                       ),
-                      child: const Text('CONFIRM & END', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: const Text(
+                        'CONFIRM & END',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 20),
-                  
+
                   // Driver Information Row
                   Container(
                     padding: const EdgeInsets.all(16),
@@ -218,23 +268,43 @@ class _TripEndRequestScreenState extends ConsumerState<TripEndRequestScreen> {
                             children: [
                               Text(
                                 // Simply use the new name field, with a safe fallback!
-                                trip?.driverName ?? '---', 
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87),
+                                trip?.driverName ?? '---',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
                               ),
                               const Text(
                                 'Vehicle Details TBA', // Placeholder until you add vehicles to DB
-                                style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
                         ),
                         IconButton(
-                          onPressed: () => ContactLauncherService.callNumber(context, driverPhone),
-                          icon: const Icon(Icons.phone_outlined, color: Colors.black54),
+                          onPressed: () => ContactLauncherService.callNumber(
+                            context,
+                            driverPhone,
+                          ),
+                          icon: const Icon(
+                            Icons.phone_outlined,
+                            color: Colors.black54,
+                          ),
                         ),
                         IconButton(
-                          onPressed: () => ContactLauncherService.smsNumber(context, driverPhone),
-                          icon: const Icon(Icons.chat_bubble_outline, color: Colors.black54),
+                          onPressed: () => ContactLauncherService.smsNumber(
+                            context,
+                            driverPhone,
+                          ),
+                          icon: const Icon(
+                            Icons.chat_bubble_outline,
+                            color: Colors.black54,
+                          ),
                         ),
                       ],
                     ),

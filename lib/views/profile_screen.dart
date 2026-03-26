@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
-import 'personal_details_screen.dart'; // We are importing our new screen here!
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'personal_details_screen.dart';
 import 'home_address_edit_screen.dart';
 import 'edit_work_address_screen.dart';
-// import 'location_sharing_screen.dart';
 import 'commute_alerts_screen.dart';
 import 'switch_account_screen.dart';
 import 'account_deletion_screen.dart';
 import 'sign_out_screen.dart';
 import 'edit_name_screen.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/auth_controller.dart';
 
 class BoundedBouncingScrollPhysics extends BouncingScrollPhysics {
   const BoundedBouncingScrollPhysics({super.parent});
@@ -38,7 +37,6 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // <-- Added WidgetRef
     // FETCH LIVE USER DATA
     final user = ref.watch(currentUserProvider);
     return Scaffold(
@@ -59,7 +57,7 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(width: 16),
                   Expanded(
                     child: Text(
-                      user?.name ?? 'Loading...', // <-- DYNAMIC NAME HERE
+                      user?.name ?? 'Loading...',
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
@@ -92,7 +90,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
 
-            // --- SCROLLABLE LIST SECTION ---
+            // SCROLLABLE LIST SECTION
             Expanded(
               child: ScrollConfiguration(
                 behavior: ScrollBehavior().copyWith(overscroll: false),
@@ -102,10 +100,10 @@ class ProfileScreen extends ConsumerWidget {
                     children: [
                       const SizedBox(height: 10),
 
-                      // 1. THE NEW PERSONAL DETAILS BUTTON
+                      // PERSONAL DETAILS BUTTON
                       _buildTile(
                         context,
-                        Icons.badge_outlined, // A good icon for personal info
+                        Icons.badge_outlined,
                         'Personal Details',
                         onTap: () {
                           Navigator.push(
@@ -123,7 +121,6 @@ class ProfileScreen extends ConsumerWidget {
                         color: Colors.black12,
                       ),
 
-                      // 2. THE REST OF YOUR ORIGINAL MENU
                       _buildTile(
                         context,
                         Icons.home_outlined,

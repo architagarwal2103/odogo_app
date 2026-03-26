@@ -5,11 +5,13 @@ class LocationPermissionScreen extends StatefulWidget {
   const LocationPermissionScreen({super.key});
 
   @override
-  State<LocationPermissionScreen> createState() => _LocationPermissionScreenState();
+  State<LocationPermissionScreen> createState() =>
+      _LocationPermissionScreenState();
 }
 
-class _LocationPermissionScreenState extends State<LocationPermissionScreen> with WidgetsBindingObserver {
-  bool _isPopping = false; // THE FIX: Stops the double-pop black screen bug
+class _LocationPermissionScreenState extends State<LocationPermissionScreen>
+    with WidgetsBindingObserver {
+  bool _isPopping = false;
 
   @override
   void initState() {
@@ -30,7 +32,6 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> wit
     }
   }
 
-  // Safely pops only ONCE
   void _safePop() {
     if (_isPopping || !mounted) return;
     _isPopping = true;
@@ -44,7 +45,8 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> wit
     if (!serviceEnabled) return;
 
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
       _safePop();
     }
   }
@@ -66,7 +68,8 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> wit
       return;
     }
 
-    if (permission == LocationPermission.whileInUse || permission == LocationPermission.always) {
+    if (permission == LocationPermission.whileInUse ||
+        permission == LocationPermission.always) {
       _safePop();
     }
   }
@@ -74,7 +77,7 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> wit
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false, 
+      canPop: false,
       child: Scaffold(
         backgroundColor: Colors.white,
         body: SafeArea(
@@ -90,18 +93,30 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> wit
                     color: const Color(0xFF66D2A3).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.location_on, size: 80, color: Color(0xFF66D2A3)),
+                  child: const Icon(
+                    Icons.location_on,
+                    size: 80,
+                    color: Color(0xFF66D2A3),
+                  ),
                 ),
                 const SizedBox(height: 32),
                 const Text(
                   'Enable Location',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black87),
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 const Text(
                   'OdoGo needs your location to connect you with nearby drivers and ensure your rides are tracked safely. Please enable location services to continue.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey, height: 1.5),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                    height: 1.5,
+                  ),
                 ),
                 const Spacer(),
                 SizedBox(
@@ -111,9 +126,18 @@ class _LocationPermissionScreenState extends State<LocationPermissionScreen> wit
                     onPressed: _requestPermission,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    child: const Text('Enable Location', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Enable Location',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),

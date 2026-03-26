@@ -43,13 +43,17 @@ class _CommuteAlertsScreenState extends ConsumerState<CommuteAlertsScreen> {
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      print('Error loading notification settings: $e'.replaceFirst('Exception: ', '').trim());
+      print(
+        'Error loading notification settings: $e'
+            .replaceFirst('Exception: ', '')
+            .trim(),
+      );
     }
   }
 
   Future<void> _handleNotificationToggle(bool value) async {
     if (value) {
-      // User is turning ON notifications - request permission
+      // If user is turning on notifications, request permission.
       if (!_isPermanentlyDenied) {
         final granted = await _permissionService
             .requestNotificationPermission();
@@ -94,7 +98,7 @@ class _CommuteAlertsScreenState extends ConsumerState<CommuteAlertsScreen> {
         );
       }
     } else {
-      // User is turning OFF notifications
+      // User is turning off notifications
       await _permissionService.disableNotifications();
       setState(() => _notificationsEnabled = false);
 
@@ -116,7 +120,7 @@ class _CommuteAlertsScreenState extends ConsumerState<CommuteAlertsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         elevation: 0,
-        // The essential Back Button
+        // Back Button
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -130,7 +134,7 @@ class _CommuteAlertsScreenState extends ConsumerState<CommuteAlertsScreen> {
             padding: EdgeInsets.only(right: 16.0),
             child: CircleAvatar(
               radius: 16,
-              backgroundColor: Color(0xFF66D2A3), // Standard OdoGo Green
+              backgroundColor: Color(0xFF66D2A3),
               child: Icon(Icons.person, color: Colors.white, size: 20),
             ),
           ),

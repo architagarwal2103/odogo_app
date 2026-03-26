@@ -101,18 +101,17 @@
 //   }
 // }
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. Added Riverpod
-import '../controllers/auth_controller.dart'; // 2. Import your AuthController (Adjust path if needed)
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
 
-// 3. Upgraded to ConsumerWidget
 class LogoutWarningScreen extends ConsumerWidget {
   const LogoutWarningScreen({super.key});
 
   void _proceedToLandingPage(BuildContext context, WidgetRef ref) {
-    // 1. Grab the messenger to show a quick confirmation
+    // Grab the messenger to show a quick confirmation
     final messenger = ScaffoldMessenger.of(context);
 
-    // 2. Show the logout confirmation BEFORE we change the state
+    // Show the logout confirmation BEFORE we change the state
     messenger.showSnackBar(
       const SnackBar(
         content: Text('Logged out successfully.'),
@@ -120,7 +119,7 @@ class LogoutWarningScreen extends ConsumerWidget {
       ),
     );
 
-    // 3. THE FIX: Tell the controller to prep for a new account.
+    // Tell the controller to prep for a new account.
     // This drops the state to AuthInitial and GoRouter automatically teleports you to the Landing Page!
     // It purposefully leaves your old session on the hard drive so you can easily switch back.
     ref.read(authControllerProvider.notifier).startAddingNewAccount();
@@ -149,7 +148,6 @@ class LogoutWarningScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const SizedBox(height: 40),
-              // Logout Icon
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -204,7 +202,7 @@ class LogoutWarningScreen extends ConsumerWidget {
 
               // Log Out & Continue Button
               ElevatedButton(
-                // 4. Pass 'ref' into our helper method so it can talk to the Controller
+                // Pass 'ref' into our helper method so it can talk to the Controller
                 onPressed: () => _proceedToLandingPage(context, ref),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF333333),

@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // 1. ADDED: Import Riverpod to access state
-import '../controllers/auth_controller.dart'; // 2. ADDED: Import Auth Controller to get user data
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../controllers/auth_controller.dart';
 
-// 3. CHANGED: Converted from StatelessWidget to ConsumerWidget
 class DriverDocumentsScreen extends ConsumerWidget {
   const DriverDocumentsScreen({super.key});
 
   final Color odogoGreen = const Color(0xFF66D2A3);
 
   @override
-  // 4. CHANGED: Added WidgetRef to the build method
   Widget build(BuildContext context, WidgetRef ref) {
-    // 5. ADDED: Fetch the current logged-in user from Riverpod
+    // Fetch the current logged-in user from Riverpod
     final user = ref.watch(currentUserProvider);
     final vehicle = user?.vehicle;
 
-    // 6. CHANGED: Moved the documents list inside build() so it can access the dynamic 'user' data.
+    // Moved the documents list inside build() so it can access the dynamic 'user' data.
     // Mapped the specific backend URLs to each document type.
     final List<Map<String, dynamic>> documents = [
       {
@@ -54,7 +52,7 @@ class DriverDocumentsScreen extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        // 7. CHANGED: Dynamically display the user's actual name from the backend instead of 'Inesh'
+        // Dynamically display the user's actual name
         title: Text(
           user?.name ?? 'Profile',
           style: const TextStyle(color: Colors.white),
@@ -98,7 +96,7 @@ class DriverDocumentsScreen extends ConsumerWidget {
             const SizedBox(height: 10),
 
             // The Document List
-            // 8. CHANGED: Passed the dynamic documents list to the builder method
+            // Passed the dynamic documents list to the builder method
             Expanded(child: _buildDocumentList(documents)),
           ],
         ),
@@ -106,7 +104,7 @@ class DriverDocumentsScreen extends ConsumerWidget {
     );
   }
 
-  // 9. CHANGED: Accept the documents list as a parameter
+  // Accept the documents list as a parameter
   Widget _buildDocumentList(List<Map<String, dynamic>> documents) {
     return ListView.builder(
       padding: const EdgeInsets.all(24),
@@ -142,7 +140,7 @@ class DriverDocumentsScreen extends ConsumerWidget {
                     icon: Icon(Icons.visibility, color: odogoGreen),
                     tooltip: 'View Document',
                     onPressed: () {
-                      // 10. ADDED: View Document Logic
+                      // View Document Logic
                       if (url != null && url.isNotEmpty) {
                         // Displays the URL in a dialog.
                         // (If you add the 'url_launcher' package later, you can replace this showDialog with launchUrl(Uri.parse(url)))
@@ -175,7 +173,7 @@ class DriverDocumentsScreen extends ConsumerWidget {
                     tooltip: 'Update Document',
                     onPressed: () {
                       print("Updating ${doc['title']}");
-                      // Here you can route them to an update/upload screen
+                      // Can route them to an update/upload screen
                     },
                   ),
                 ],

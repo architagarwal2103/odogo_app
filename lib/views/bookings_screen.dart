@@ -36,8 +36,13 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
               loading: () => const Center(
                 child: CircularProgressIndicator(color: odoGoGreen),
               ),
-              error: (error, stack) =>
-                  Center(child: Text('Error loading bookings: $error'.replaceFirst('Exception: ', '').trim())),
+              error: (error, stack) => Center(
+                child: Text(
+                  'Error loading bookings: $error'
+                      .replaceFirst('Exception: ', '')
+                      .trim(),
+                ),
+              ),
               data: (allTrips) {
                 if (allTrips.isEmpty) {
                   return const Center(
@@ -64,11 +69,15 @@ class _BookingsScreenState extends ConsumerState<BookingsScreen> {
                   final timeA =
                       a.startTime ??
                       a.scheduledTime ??
-                      DateTime.fromMillisecondsSinceEpoch(int.tryParse(a.tripID) ?? 0);
+                      DateTime.fromMillisecondsSinceEpoch(
+                        int.tryParse(a.tripID) ?? 0,
+                      );
                   final timeB =
                       b.startTime ??
                       b.scheduledTime ??
-                      DateTime.fromMillisecondsSinceEpoch(int.tryParse(a.tripID) ?? 0);
+                      DateTime.fromMillisecondsSinceEpoch(
+                        int.tryParse(a.tripID) ?? 0,
+                      );
                   return timeB.compareTo(timeA); // Descending order
                 });
 
@@ -308,13 +317,22 @@ class CommuterBookingCard extends ConsumerWidget {
                       alignment: Alignment.centerRight,
                       child: TextButton.icon(
                         onPressed: () {
-                          // Call the new commuter cancel method!
-                          ref.read(tripControllerProvider.notifier).cancelScheduledRideByCommuter(trip);
+                          // Call the commuter cancel method
+                          ref
+                              .read(tripControllerProvider.notifier)
+                              .cancelScheduledRideByCommuter(trip);
                         },
-                        icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
+                        icon: const Icon(
+                          Icons.cancel_outlined,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         label: const Text(
-                          'Cancel Ride', 
-                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)
+                          'Cancel Ride',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

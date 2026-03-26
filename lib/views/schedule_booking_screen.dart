@@ -103,8 +103,6 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
     }
   }
 
-  // --- UNIFIED BOTTOM SHEET SELECTOR ---
-
   Future<void> _openLocationSelector({required bool isPickup}) async {
     String localSearchText = '';
 
@@ -122,7 +120,7 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
     final selected = await showModalBottomSheet<dynamic>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent, // MAGIC TRICK: Transparent base
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
@@ -138,7 +136,6 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
                       )
                       .toList();
 
-            // Smart logic to show Home/Work tiles
             bool showHome =
                 homeAddress != null &&
                 (localSearchText.isEmpty ||
@@ -408,6 +405,7 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
 
     final newTrip = TripModel(
       tripID: DateTime.now().millisecondsSinceEpoch.toString(), // Unique ID
+      bookingTime: DateTime.now(),
       status: TripStatus
           .scheduled, // Saves as 'scheduled' so it stays hidden until the broadcast window
       commuterID: user.userID,
@@ -713,10 +711,6 @@ class _ScheduleBookingScreenState extends ConsumerState<ScheduleBookingScreen> {
       ),
     );
   }
-
-  // --- UPDATED ROW HELPER ---
-
-  // Now explicitly makes the text field Read-Only and uses onTap to trigger the sheet
 
   Widget _buildLocationRow({
     required IconData icon,

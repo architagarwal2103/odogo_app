@@ -1,13 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/notification_model.dart';
 import '../repositories/notification_repository.dart';
-import 'auth_controller.dart'; // Needed to grab the current user
+import 'auth_controller.dart';
 
 final notificationRepositoryProvider = Provider(
   (ref) => NotificationRepository(),
 );
 
-// Streams ONLY the unread notifications for the currently logged-in user
+// Streams only the unread notifications for the currently logged-in user
 final userNotificationsProvider = StreamProvider<List<NotificationModel>>((
   ref,
 ) {

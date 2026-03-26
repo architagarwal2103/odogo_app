@@ -23,28 +23,34 @@ class RideConfirmedScreen extends ConsumerStatefulWidget {
   final LatLng? dropoffPoint;
   final LatLng? pickupPoint;
 
-  const RideConfirmedScreen({super.key, required this.tripID, this.dropoffPoint, this.pickupPoint});
+  const RideConfirmedScreen({
+    super.key,
+    required this.tripID,
+    this.dropoffPoint,
+    this.pickupPoint,
+  });
 
   @override
-  ConsumerState<RideConfirmedScreen> createState() => _RideConfirmedScreenState();
+  ConsumerState<RideConfirmedScreen> createState() =>
+      _RideConfirmedScreenState();
 }
 
 class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
   static const LatLng _fallbackCurrentLocation = LatLng(26.5123, 80.2329);
   static const LatLng _fallbackDriverLocation = LatLng(26.5150, 80.2300);
   static const LatLng _fallbackDropoffLocation = LatLng(26.5170, 80.2310);
-  static const double _avgDriverSpeedMetersPerSecond = 4.5; 
+  static const double _avgDriverSpeedMetersPerSecond = 4.5;
   static const double _minFitDistanceMeters = 5;
   static const double _destinationRefreshThresholdMeters = 5;
   static const double _driverUpdateThresholdMeters = 3;
-  
+
   LatLng _pickupLocation = _fallbackCurrentLocation;
   LatLng _driverLocation = _fallbackDriverLocation;
   List<LatLng>? _routePoints;
   bool _pickupResolvedFromTrip = false;
   late LatLng _dropoffLocation;
 
-  // 🔥 ADDED: MapController for active camera tracking
+  // MapController for active camera tracking
   final MapController _mapController = MapController();
   bool _isMapReady = false;
 
@@ -67,13 +73,18 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
       permission = await Geolocator.requestPermission();
     }
 
-    if (!mounted || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) return;
+    if (!mounted ||
+        permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever)
+      return;
 
     final serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled || !mounted) return;
 
     try {
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       if (!mounted) return;
       setState(() {
         if (widget.pickupPoint == null) {
@@ -107,7 +118,9 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
       final points = <LatLng>[];
       for (final item in coordinates) {
         if (item is List && item.length >= 2) {
-          points.add(LatLng((item[1] as num).toDouble(), (item[0] as num).toDouble()));
+          points.add(
+            LatLng((item[1] as num).toDouble(), (item[0] as num).toDouble()),
+          );
         }
       }
 
@@ -126,7 +139,13 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
       );
     }
 
-    if (Geolocator.distanceBetween(_driverLocation.latitude, _driverLocation.longitude, _pickupLocation.latitude, _pickupLocation.longitude) < _minFitDistanceMeters) {
+    if (Geolocator.distanceBetween(
+          _driverLocation.latitude,
+          _driverLocation.longitude,
+          _pickupLocation.latitude,
+          _pickupLocation.longitude,
+        ) <
+        _minFitDistanceMeters) {
       return null;
     }
 
@@ -138,26 +157,34 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
 
   List<LatLng> _polylinePoints() {
     if (_routePoints != null && _routePoints!.length >= 2) {
-      // 🔥 FIXED: Blue line is now glued to the moving car
+      // Blue line is now glued to the moving car
       return [_driverLocation, ..._routePoints!];
     }
     return [_driverLocation, _pickupLocation];
   }
 
   int get _etaMinutesToPickup {
-    final distanceMeters = Geolocator.distanceBetween(_driverLocation.latitude, _driverLocation.longitude, _pickupLocation.latitude, _pickupLocation.longitude);
-    final etaMinutes = (distanceMeters / _avgDriverSpeedMetersPerSecond / 60).ceil();
+    final distanceMeters = Geolocator.distanceBetween(
+      _driverLocation.latitude,
+      _driverLocation.longitude,
+      _pickupLocation.latitude,
+      _pickupLocation.longitude,
+    );
+    final etaMinutes = (distanceMeters / _avgDriverSpeedMetersPerSecond / 60)
+        .ceil();
     return etaMinutes < 1 ? 1 : etaMinutes;
   }
 
   void _cancelTrip(BuildContext context) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => CommuterCancelConfirmationScreen(tripID: widget.tripID)),
+      MaterialPageRoute(
+        builder: (context) =>
+            CommuterCancelConfirmationScreen(tripID: widget.tripID),
+      ),
     );
   }
 
-  // 🔥 FIXED: Upgraded to use the new startLatitude/startLongitude from TripModel
   void _syncPickupFromTrip(TripModel? trip) {
     if (trip == null || _pickupResolvedFromTrip) return;
 
@@ -173,7 +200,14 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
 
     if (nextPickup == null) return;
 
-    final hasChanged = Geolocator.distanceBetween(_pickupLocation.latitude, _pickupLocation.longitude, nextPickup.latitude, nextPickup.longitude) > _destinationRefreshThresholdMeters;
+    final hasChanged =
+        Geolocator.distanceBetween(
+          _pickupLocation.latitude,
+          _pickupLocation.longitude,
+          nextPickup.latitude,
+          nextPickup.longitude,
+        ) >
+        _destinationRefreshThresholdMeters;
 
     if (!hasChanged) {
       _pickupResolvedFromTrip = true;
@@ -193,7 +227,7 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
     final activeTripAsync = ref.watch(activeTripStreamProvider(widget.tripID));
     final trip = activeTripAsync.value;
 
-    // 🔥 FIXED: Safely sync data after build phase
+    // Safely sync data after build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _syncPickupFromTrip(trip);
     });
@@ -205,7 +239,9 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
       if (nextTrip.status == TripStatus.pending) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Driver cancelled the ride. Searching for a new driver...'),
+            content: Text(
+              'Driver cancelled the ride. Searching for a new driver...',
+            ),
             backgroundColor: Colors.orange,
             duration: Duration(seconds: 4),
           ),
@@ -217,36 +253,46 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
               tripID: widget.tripID,
               dropoffPoint: widget.dropoffPoint,
               pickupPoint: widget.pickupPoint,
-              wasDropped: true, 
+              wasDropped: true,
             ),
           ),
-          (route) => route.isFirst, 
+          (route) => route.isFirst,
         );
-      } else if (nextTrip.status == TripStatus.ongoing) { 
+      } else if (nextTrip.status == TripStatus.ongoing) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => PickupConfirmedScreen(tripID: widget.tripID, dropoffPoint: _dropoffLocation)),
+          MaterialPageRoute(
+            builder: (context) => PickupConfirmedScreen(
+              tripID: widget.tripID,
+              dropoffPoint: _dropoffLocation,
+            ),
+          ),
         );
       }
     });
 
-    // 🔥 FIXED: Safe RTDB Listener that controls camera and state properly
+    // Safe RTDB Listener that controls camera and state properly
     final driverID = trip?.driverID ?? '';
     ref.listen(driverLocationProvider(driverID), (previous, next) {
       final telemetry = next.value;
       if (telemetry != null) {
         final nextLocation = LatLng(telemetry.latitude, telemetry.longitude);
-        final moved = Geolocator.distanceBetween(_driverLocation.latitude, _driverLocation.longitude, nextLocation.latitude, nextLocation.longitude);
-        
+        final moved = Geolocator.distanceBetween(
+          _driverLocation.latitude,
+          _driverLocation.longitude,
+          nextLocation.latitude,
+          nextLocation.longitude,
+        );
+
         if (moved >= _driverUpdateThresholdMeters) {
           setState(() {
             _driverLocation = nextLocation;
           });
-          
+
           if (_isMapReady) {
             _mapController.move(nextLocation, _mapController.camera.zoom);
           }
-          
+
           _loadRoadRoute();
         }
       }
@@ -262,15 +308,15 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
         children: [
           Positioned.fill(
             child: FlutterMap(
-              // 🔥 FIXED: Stable map key!
               key: ValueKey<String>(widget.tripID),
               mapController: _mapController,
               options: MapOptions(
                 initialCenter: _pickupLocation,
                 initialZoom: 16.0,
                 initialCameraFit: _initialCameraFit(),
-                interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
-                // 🔥 FIXED: Unlocks camera tracking safely
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
+                ),
                 onMapReady: () {
                   _isMapReady = true;
                 },
@@ -282,10 +328,26 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                   tileBuilder: (context, tileWidget, tile) {
                     return ColorFiltered(
                       colorFilter: const ColorFilter.matrix([
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        0,       0,       0,       1, 0,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
                       ]),
                       child: tileWidget,
                     );
@@ -293,14 +355,22 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                 ),
                 PolylineLayer(
                   polylines: [
-                    Polyline(points: routePoints, strokeWidth: 5, color: Colors.blue),
+                    Polyline(
+                      points: routePoints,
+                      strokeWidth: 5,
+                      color: Colors.blue,
+                    ),
                   ],
                 ),
                 MarkerLayer(
                   markers: [
                     Marker(
                       point: _pickupLocation,
-                      child: const Icon(Icons.location_on, color: Color(0xFF66D2A3), size: 40),
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Color(0xFF66D2A3),
+                        size: 40,
+                      ),
                     ),
                     Marker(
                       point: _driverLocation,
@@ -309,7 +379,12 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                       child: Image.asset(
                         'assets/images/odogo_logo_without_bg.png',
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.electric_rickshaw, color: Color(0xFF66D2A3), size: 40),
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.electric_rickshaw,
+                              color: Color(0xFF66D2A3),
+                              size: 40,
+                            ),
                       ),
                     ),
                   ],
@@ -317,21 +392,43 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
               ],
             ),
           ),
-          
+
           Positioned(
-            bottom: 0, left: 0, right: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
             child: Container(
-              padding: const EdgeInsets.only(top: 16, left: 24, right: 24, bottom: 32),
+              padding: const EdgeInsets.only(
+                top: 16,
+                left: 24,
+                right: 24,
+                bottom: 32,
+              ),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 15, offset: Offset(0, -5))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black45,
+                    blurRadius: 15,
+                    offset: Offset(0, -5),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Center(child: Container(width: 50, height: 5, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)))),
+                  Center(
+                    child: Container(
+                      width: 50,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -339,18 +436,52 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Your ride is confirmed', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.black87)),
+                          const Text(
+                            'Your ride is confirmed',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.black87,
+                            ),
+                          ),
                           const SizedBox(height: 4),
-                          Text('Meet at the pickup point', style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                          Text(
+                            'Meet at the pickup point',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                         ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: Column(
                           children: [
-                            Text('$_etaMinutesToPickup', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                            const Text('MINS', style: TextStyle(color: Color(0xFF66D2A3), fontSize: 10, fontWeight: FontWeight.bold)),
+                            Text(
+                              '$_etaMinutesToPickup',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const Text(
+                              'MINS',
+                              style: TextStyle(
+                                color: Color(0xFF66D2A3),
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -358,42 +489,132 @@ class _RideConfirmedScreenState extends ConsumerState<RideConfirmedScreen> {
                   ),
                   const SizedBox(height: 24),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    decoration: BoxDecoration(color: Colors.grey[100], borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.grey.shade300)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('PIN for this trip', style: TextStyle(color: Colors.grey[800], fontSize: 16, fontWeight: FontWeight.bold)),
-                        Text(trip?.ridePIN ?? '----', style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, letterSpacing: 6, color: Colors.black)),
+                        Text(
+                          'PIN for this trip',
+                          style: TextStyle(
+                            color: Colors.grey[800],
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          trip?.ridePIN ?? '----',
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 6,
+                            color: Colors.black,
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 24),
                   Row(
                     children: [
-                      Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: const Color(0xFF66D2A3).withOpacity(0.2), borderRadius: BorderRadius.circular(16)), child: const Icon(Icons.person, size: 36, color: Color(0xFF66D2A3))),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF66D2A3).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(
+                          Icons.person,
+                          size: 36,
+                          color: Color(0xFF66D2A3),
+                        ),
+                      ),
                       const SizedBox(width: 16),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(trip?.driverName ?? '----', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
-                            const Text('Your Driver', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.w600)),
+                            Text(
+                              trip?.driverName ?? '----',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const Text(
+                              'Your Driver',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      Container(decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle), child: IconButton(onPressed: () => ContactLauncherService.callNumber(context, driverPhone), icon: const Icon(Icons.phone_in_talk, color: Colors.black87))),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () => ContactLauncherService.callNumber(
+                            context,
+                            driverPhone,
+                          ),
+                          icon: const Icon(
+                            Icons.phone_in_talk,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Container(decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle), child: IconButton(onPressed: () => ContactLauncherService.smsNumber(context, driverPhone), icon: const Icon(Icons.message_rounded, color: Colors.black87))),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () => ContactLauncherService.smsNumber(
+                            context,
+                            driverPhone,
+                          ),
+                          icon: const Icon(
+                            Icons.message_rounded,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.red, width: 2), padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red, width: 2),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
                       onPressed: () => _cancelTrip(context),
-                      child: const Text('Cancel Trip', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+                      child: const Text(
+                        'Cancel Trip',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
                     ),
                   ),
                 ],

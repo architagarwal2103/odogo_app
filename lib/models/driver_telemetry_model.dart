@@ -2,7 +2,7 @@ class DriverTelemetry {
   final String driverID;
   final double latitude;
   final double longitude;
-  final int timestampMs; // Milliseconds since epoch for RTDB
+  final int timestampMs;
 
   DriverTelemetry({
     required this.driverID,

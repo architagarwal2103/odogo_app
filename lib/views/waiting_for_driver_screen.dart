@@ -8,34 +8,35 @@ import 'package:odogo_app/models/enums.dart';
 import 'package:odogo_app/models/trip_model.dart';
 import 'ride_confirmed_screen.dart';
 
-class WaitingForDriverScreen extends ConsumerStatefulWidget { 
+class WaitingForDriverScreen extends ConsumerStatefulWidget {
   final LatLng? dropoffPoint;
   final LatLng? pickupPoint;
   final String tripID;
-  final bool wasDropped; // NEW: Tells the screen if the driver just bailed on them
+  final bool wasDropped;
 
   const WaitingForDriverScreen({
-    super.key, 
-    required this.tripID, 
-    this.dropoffPoint, 
-    this.pickupPoint, 
-    this.wasDropped = false, // Defaults to false for normal searches
+    super.key,
+    required this.tripID,
+    this.dropoffPoint,
+    this.pickupPoint,
+    this.wasDropped = false,
   });
 
   @override
-  ConsumerState<WaitingForDriverScreen> createState() => _WaitingForDriverScreenState();
+  ConsumerState<WaitingForDriverScreen> createState() =>
+      _WaitingForDriverScreenState();
 }
 
-class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen> {
+class _WaitingForDriverScreenState
+    extends ConsumerState<WaitingForDriverScreen> {
   bool _isCancelling = false;
-  late bool _wasDroppedByDriver; 
+  late bool _wasDroppedByDriver;
   LatLng? _currentLocation;
 
   @override
   void initState() {
     super.initState();
-    // Inherit the flag from the constructor when the screen builds
-    _wasDroppedByDriver = widget.wasDropped; 
+    _wasDroppedByDriver = widget.wasDropped;
     _loadCurrentLocation();
   }
 
@@ -45,7 +46,9 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
       permission = await Geolocator.requestPermission();
     }
 
-    if (!mounted || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (!mounted ||
+        permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       return;
     }
 
@@ -53,7 +56,9 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
     if (!serviceEnabled || !mounted) return;
 
     try {
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       if (!mounted) return;
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
@@ -70,9 +75,12 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ride request cancelled.'), backgroundColor: Colors.red),
+        const SnackBar(
+          content: Text('Ride request cancelled.'),
+          backgroundColor: Colors.red,
+        ),
       );
-      
+
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -85,65 +93,92 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AsyncValue<TripModel?>>(
-      activeTripStreamProvider(widget.tripID),
-      (previous, next) {
-        final trip = next.value;
-        final prevTrip = previous?.value;
+    ref.listen<
+      AsyncValue<TripModel?>
+    >(activeTripStreamProvider(widget.tripID), (previous, next) {
+      final trip = next.value;
+      final prevTrip = previous?.value;
 
-        if (trip == null) return;
+      if (trip == null) return;
 
-        // SCENARIO A: A New Driver Accepts!
-        if (trip.status == TripStatus.confirmed && prevTrip?.status == TripStatus.pending) {
-          if (_wasDroppedByDriver) {
-            setState(() => _wasDroppedByDriver = false);
-          }
-          
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => RideConfirmedScreen(
-                tripID: widget.tripID, 
-                dropoffPoint: widget.dropoffPoint,
-                pickupPoint: widget.pickupPoint,
-              ),
-            ),
-          );
+      if (trip.status == TripStatus.cancelled &&
+          prevTrip?.status == TripStatus.pending) {
+        if (mounted) {
+          // Drops the user back to the Home Screen where the SnackBar is waiting!
+          Navigator.pop(context);
         }
-      },
-    );
+        return;
+      }
+
+      // SCENARIO: A New Driver Accepts!
+      if (trip.status == TripStatus.confirmed &&
+          prevTrip?.status == TripStatus.pending) {
+        if (_wasDroppedByDriver) {
+          setState(() => _wasDroppedByDriver = false);
+        }
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RideConfirmedScreen(
+              tripID: widget.tripID,
+              dropoffPoint: widget.dropoffPoint,
+              pickupPoint: widget.pickupPoint,
+            ),
+          ),
+        );
+      }
+    });
 
     return Scaffold(
       backgroundColor: Colors.black,
-      extendBodyBehindAppBar: true, 
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        toolbarHeight: 70, 
+        toolbarHeight: 70,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white, shadows: [Shadow(color: Colors.black, blurRadius: 10)]),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+            shadows: [Shadow(color: Colors.black, blurRadius: 10)],
+          ),
           onPressed: _isCancelling ? null : _cancelRide,
         ),
         title: Image.asset(
-          'assets/images/odogo_logo_black_bg.jpeg', 
+          'assets/images/odogo_logo_black_bg.jpeg',
           height: 40,
-          errorBuilder: (context, error, stackTrace) => const Icon(Icons.local_taxi, color: Color(0xFF66D2A3), size: 40),
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.local_taxi, color: Color(0xFF66D2A3), size: 40),
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16.0),
             child: ElevatedButton.icon(
               onPressed: () {},
-              icon: const Icon(Icons.calendar_month, color: Colors.black, size: 18),
+              icon: const Icon(
+                Icons.calendar_month,
+                color: Colors.black,
+                size: 18,
+              ),
               label: const Text(
-                'Schedule\nbookings', 
-                style: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                'Schedule\nbookings',
+                style: TextStyle(
+                  color: Colors.black,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                ),
                 textAlign: TextAlign.center,
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF66D2A3), 
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                backgroundColor: const Color(0xFF66D2A3),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
               ),
             ),
           ),
@@ -154,24 +189,48 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
           Expanded(
             child: Stack(
               children: [
-                if (_currentLocation != null || widget.pickupPoint != null || widget.dropoffPoint != null)
+                if (_currentLocation != null ||
+                    widget.pickupPoint != null ||
+                    widget.dropoffPoint != null)
                   FlutterMap(
                     options: MapOptions(
-                      initialCenter: _currentLocation ?? widget.pickupPoint ?? widget.dropoffPoint!,
+                      initialCenter:
+                          _currentLocation ??
+                          widget.pickupPoint ??
+                          widget.dropoffPoint!,
                       initialZoom: 16.0,
-                      interactionOptions: const InteractionOptions(flags: InteractiveFlag.all),
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all,
+                      ),
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.odogo_app',
                         tileBuilder: (context, tileWidget, tile) {
                           return ColorFiltered(
                             colorFilter: const ColorFilter.matrix([
-                              -0.2126, -0.7152, -0.0722, 0, 255,
-                              -0.2126, -0.7152, -0.0722, 0, 255,
-                              -0.2126, -0.7152, -0.0722, 0, 255,
-                              0,       0,       0,       1, 0,
+                              -0.2126,
+                              -0.7152,
+                              -0.0722,
+                              0,
+                              255,
+                              -0.2126,
+                              -0.7152,
+                              -0.0722,
+                              0,
+                              255,
+                              -0.2126,
+                              -0.7152,
+                              -0.0722,
+                              0,
+                              255,
+                              0,
+                              0,
+                              0,
+                              1,
+                              0,
                             ]),
                             child: tileWidget,
                           );
@@ -182,69 +241,110 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
                           if (_currentLocation != null)
                             Marker(
                               point: _currentLocation!,
-                              child: const Icon(Icons.my_location, color: Color(0xFF66D2A3), size: 40),
+                              child: const Icon(
+                                Icons.my_location,
+                                color: Color(0xFF66D2A3),
+                                size: 40,
+                              ),
                             ),
                           if (widget.pickupPoint != null)
                             Marker(
                               point: widget.pickupPoint!,
-                              child: const Icon(Icons.location_on, color: Colors.white, size: 38),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.white,
+                                size: 38,
+                              ),
                             )
                           else if (widget.dropoffPoint != null)
                             Marker(
                               point: widget.dropoffPoint!,
-                              child: const Icon(Icons.location_on, color: Colors.redAccent, size: 38),
+                              child: const Icon(
+                                Icons.location_on,
+                                color: Colors.redAccent,
+                                size: 38,
+                              ),
                             ),
                         ],
                       ),
                     ],
                   )
                 else
-                  const Center(child: CircularProgressIndicator(color: Color(0xFF66D2A3))),
+                  const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF66D2A3)),
+                  ),
               ],
             ),
           ),
-          
+
           Container(
-            padding: const EdgeInsets.only(top: 24, left: 24, right: 24, bottom: 40),
+            padding: const EdgeInsets.only(
+              top: 24,
+              left: 24,
+              right: 24,
+              bottom: 40,
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, -5))],
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black26,
+                  blurRadius: 10,
+                  offset: Offset(0, -5),
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('TRIP STATUS', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                const SizedBox(height: 8),
-                
-                Text(
-                  _wasDroppedByDriver ? 'DRIVER CANCELLED.\nRE-SEARCHING...' : 'WAITING FOR DRIVER', 
+                const Text(
+                  'TRIP STATUS',
                   style: TextStyle(
-                    fontSize: _wasDroppedByDriver ? 20 : 22, 
-                    fontWeight: FontWeight.w900, 
-                    color: _wasDroppedByDriver ? Colors.orange.shade800 : Colors.black87
-                  )
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
                 ),
-                
+                const SizedBox(height: 8),
+
+                Text(
+                  _wasDroppedByDriver
+                      ? 'DRIVER CANCELLED.\nRE-SEARCHING...'
+                      : 'WAITING FOR DRIVER',
+                  style: TextStyle(
+                    fontSize: _wasDroppedByDriver ? 20 : 22,
+                    fontWeight: FontWeight.w900,
+                    color: _wasDroppedByDriver
+                        ? Colors.orange.shade800
+                        : Colors.black87,
+                  ),
+                ),
+
                 const SizedBox(height: 24),
-                
+
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
                     minHeight: 6,
                     backgroundColor: Colors.grey[200],
-                    color: _wasDroppedByDriver ? Colors.orange : const Color(0xFF66D2A3),
+                    color: _wasDroppedByDriver
+                        ? Colors.orange
+                        : const Color(0xFF66D2A3),
                   ),
                 ),
-                
+
                 const SizedBox(height: 32),
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF66D2A3).withOpacity(0.15), 
+                    color: const Color(0xFF66D2A3).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF66D2A3).withOpacity(0.3)),
+                    border: Border.all(
+                      color: const Color(0xFF66D2A3).withOpacity(0.3),
+                    ),
                   ),
                   // child: const Row(
                   //   children: [
@@ -266,11 +366,27 @@ class _WaitingForDriverScreenState extends ConsumerState<WaitingForDriverScreen>
                     onPressed: _isCancelling ? null : _cancelRide,
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
-                    child: _isCancelling 
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.red, strokeWidth: 2))
-                        : const Text('Cancel Ride', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+                    child: _isCancelling
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.red,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            'Cancel Ride',
+                            style: TextStyle(
+                              color: Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                   ),
                 ),
               ],

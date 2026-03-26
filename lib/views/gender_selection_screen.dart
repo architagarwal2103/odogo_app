@@ -127,8 +127,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/auth_controller.dart';
-import '../controllers/user_controller.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/controllers/user_controller.dart';
 
 enum Gender { male, female, other, preferNotToSay }
 

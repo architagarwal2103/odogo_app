@@ -171,13 +171,12 @@
 // }
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart'; // Added Riverpod
-import '../controllers/auth_controller.dart'; // Adjust path
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/models/enums.dart';
 import 'logout_warning_screen.dart';
 import 'package:go_router/go_router.dart';
-import '../models/enums.dart';
 
-// Upgraded to ConsumerStatefulWidget
 class SwitchAccountScreen extends ConsumerStatefulWidget {
   const SwitchAccountScreen({super.key});
 
@@ -227,7 +226,7 @@ class _SwitchAccountScreenState extends ConsumerState<SwitchAccountScreen> {
         backgroundColor: Colors.green,
       ),
     );
-    
+
     Navigator.of(context).pop();
     final updatedUser = ref.read(currentUserProvider);
 

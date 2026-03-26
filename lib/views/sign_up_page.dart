@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // Needed for Timestamp!
-import '../controllers/auth_controller.dart';
-import '../models/user_model.dart';
-import '../models/enums.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/models/enums.dart';
+import 'package:odogo_app/models/user_model.dart';
 
 class SignUpPage extends ConsumerStatefulWidget {
   final bool isDriver;
@@ -91,7 +91,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
       _isLoading = true;
     });
 
-    // 1. Grab the email from the current Auth State
+    // Grab the email from the current Auth State
     final authState = ref.read(authControllerProvider);
     if (authState is! AuthNeedsProfileSetup) {
       _showError("Authentication state error. Please try logging in again.");
@@ -103,7 +103,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
 
     final userEmail = authState.email;
 
-    // 2. Construct your exact UserModel
+    // Construct exact UserModel
     final newUser = UserModel(
       userID: userEmail, // Using email as the unique ID
       emailID: userEmail,
@@ -120,7 +120,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
       mode: widget.isDriver ? DriverMode.offline : null,
     );
 
-    // 3. Save to Firebase and update Riverpod State!
+    // Save to Firebase and update Riverpod State!
     await ref
         .read(authControllerProvider.notifier)
         .completeProfileSetup(newUser);
@@ -130,7 +130,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
       _isLoading = false;
     });
 
-    // 4. Check if it worked
+    // Check if it worked
     final newState = ref.read(authControllerProvider);
     if (newState is AuthError) {
       _showError(newState.message);

@@ -24,7 +24,8 @@ class AccountNotFoundScreen extends ConsumerWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => ref.read(authControllerProvider.notifier).abortSignup(),
+          onPressed: () =>
+              ref.read(authControllerProvider.notifier).abortSignup(),
         ),
       ),
       body: SafeArea(
@@ -36,10 +37,7 @@ class AccountNotFoundScreen extends ConsumerWidget {
               const SizedBox(height: 24),
               ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'assets/images/odogo_logo.png',
-                  height: 84,
-                ),
+                child: Image.asset('assets/images/odogo_logo.png', height: 84),
               ),
               const SizedBox(height: 28),
               const Text(
@@ -104,13 +102,6 @@ class AccountNotFoundScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              // TextButton(
-              //   onPressed: () => ref.read(authControllerProvider.notifier).abortSignup(),
-              //   child: const Text(
-              //     'Back to Login',
-              //     style: TextStyle(color: Colors.black87),
-              //   ),
-              // ),
               const SizedBox(height: 12),
             ],
           ),

@@ -37,8 +37,13 @@ class _DriverBookingsScreenState extends ConsumerState<DriverBookingsScreen> {
               loading: () => const Center(
                 child: CircularProgressIndicator(color: odoGoGreen),
               ),
-              error: (error, stack) =>
-                  Center(child: Text('Error loading bookings: $error'.replaceFirst('Exception: ', '').trim())),
+              error: (error, stack) => Center(
+                child: Text(
+                  'Error loading bookings: $error'
+                      .replaceFirst('Exception: ', '')
+                      .trim(),
+                ),
+              ),
               data: (allTrips) {
                 if (allTrips.isEmpty) {
                   return const Center(
@@ -49,7 +54,7 @@ class _DriverBookingsScreenState extends ConsumerState<DriverBookingsScreen> {
                   );
                 }
 
-                // STRICT FILTERING: Only show 'scheduled' in Upcoming, and 'completed' in Past
+                // Only show 'scheduled' in Upcoming, and 'completed' in Past
                 final upcomingTrips = allTrips
                     .where((t) => t.status == TripStatus.scheduled)
                     .toList();
@@ -63,13 +68,9 @@ class _DriverBookingsScreenState extends ConsumerState<DriverBookingsScreen> {
 
                 displayList.sort((a, b) {
                   final timeA =
-                      a.scheduledTime ??
-                      a.eta?.toDate() ??
-                      DateTime.now();
+                      a.scheduledTime ?? a.eta?.toDate() ?? DateTime.now();
                   final timeB =
-                      b.scheduledTime ??
-                      b.eta?.toDate() ??
-                      DateTime.now();
+                      b.scheduledTime ?? b.eta?.toDate() ?? DateTime.now();
                   return timeB.compareTo(timeA);
                 });
 
@@ -177,7 +178,6 @@ class _DriverBookingsScreenState extends ConsumerState<DriverBookingsScreen> {
   }
 }
 
-// RESTORED DRIVER UI CARD
 class DriverBookingCard extends ConsumerWidget {
   final TripModel trip;
   final bool isUpcoming;
@@ -195,14 +195,14 @@ class DriverBookingCard extends ConsumerWidget {
       displayDate = DateTime.fromMillisecondsSinceEpoch(tripEpoch);
     }
 
-    // 2. Override with scheduledTime or ETA if they exist
+    // Override with scheduledTime or ETA if they exist
     if (trip.scheduledTime != null) {
       displayDate = trip.scheduledTime!;
     } else if (trip.startTime != null) {
       displayDate = trip.startTime!;
     }
 
-    // 3. Format it beautifully
+    // Format it beautifully
     String formattedDate = DateFormat(
       "d MMMM, yyyy, h:mm a",
     ).format(displayDate);
@@ -302,12 +302,21 @@ class DriverBookingCard extends ConsumerWidget {
                       child: TextButton.icon(
                         onPressed: () {
                           // Call the new driver cancel method!
-                          ref.read(tripControllerProvider.notifier).cancelScheduledRideByDriver(trip);
+                          ref
+                              .read(tripControllerProvider.notifier)
+                              .cancelScheduledRideByDriver(trip);
                         },
-                        icon: const Icon(Icons.cancel_outlined, color: Colors.red, size: 20),
+                        icon: const Icon(
+                          Icons.cancel_outlined,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                         label: const Text(
-                          'Cancel Ride', 
-                          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)
+                          'Cancel Ride',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),

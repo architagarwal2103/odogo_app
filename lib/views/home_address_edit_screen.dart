@@ -108,9 +108,9 @@
 // }
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/auth_controller.dart';
-import '../controllers/user_controller.dart';
-import '../data/iitk_dropoff_locations.dart'; 
+import 'package:odogo_app/controllers/auth_controller.dart';
+import 'package:odogo_app/controllers/user_controller.dart';
+import 'package:odogo_app/data/iitk_dropoff_locations.dart';
 
 class HomeAddressEditScreen extends ConsumerStatefulWidget {
   const HomeAddressEditScreen({super.key});
@@ -153,9 +153,9 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
     await ref
         .read(userControllerProvider.notifier)
         .updateHome(_addressController.text.trim());
-        
+
     if (!mounted) return;
-    
+
     setState(() => _isLoading = false);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -166,77 +166,102 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
     Navigator.pop(context);
   }
 
-  // --- THE UNIFIED BOTTOM SHEET SELECTOR ---
   Future<void> _openAddressSelector() async {
     String localSearchText = '';
-    
+
     final selected = await showModalBottomSheet<dynamic>(
       context: context,
-      isScrollControlled: true, 
-      backgroundColor: Colors.transparent, // Required for the black banner trick
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (sheetContext) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setSheetState) {
-            
-            // Reusing your alias filtering logic
-            List<DropoffLocation> sheetFiltered = localSearchText.isEmpty 
-              ? iitkDropoffLocations 
-              : iitkDropoffLocations.where((loc) => 
-                  loc.name.toLowerCase().contains(localSearchText.toLowerCase()) || 
-                  loc.matches(localSearchText) 
-                ).toList();
+            // Reusing alias filtering logic
+            List<DropoffLocation> sheetFiltered = localSearchText.isEmpty
+                ? iitkDropoffLocations
+                : iitkDropoffLocations
+                      .where(
+                        (loc) =>
+                            loc.name.toLowerCase().contains(
+                              localSearchText.toLowerCase(),
+                            ) ||
+                            loc.matches(localSearchText),
+                      )
+                      .toList();
 
             return Padding(
-              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom), 
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
               child: Container(
-                // THE BLACK BANNER BACKGROUND
                 decoration: const BoxDecoration(
-                  color: Colors.black, 
+                  color: Colors.black,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
                 child: SafeArea(
                   bottom: false,
                   child: Container(
-                    // THE WHITE SHEET FOREGROUND
                     height: MediaQuery.of(context).size.height * 0.65,
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Padding(
                           padding: EdgeInsets.fromLTRB(20, 20, 20, 8),
-                          child: Text('Set Home Address', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)),
+                          child: Text(
+                            'Set Home Address',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
-                        
+
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           child: TextField(
                             autofocus: true,
                             decoration: InputDecoration(
-                              hintText: 'Search hostel or hall...', // Updated hint text
-                              prefixIcon: const Icon(Icons.search, color: Colors.black54),
+                              hintText: 'Search hostel or hall...',
+                              prefixIcon: const Icon(
+                                Icons.search,
+                                color: Colors.black54,
+                              ),
                               filled: true,
                               fillColor: Colors.grey[200],
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 0,
+                              ),
                             ),
                             onChanged: (val) {
                               setSheetState(() => localSearchText = val);
                             },
                           ),
                         ),
-                        
-                        // REMOVED custom string input tile here. Added "No Results" message.
+
                         if (localSearchText.isNotEmpty && sheetFiltered.isEmpty)
                           Padding(
                             padding: const EdgeInsets.symmetric(vertical: 20),
                             child: Center(
                               child: Text(
                                 'No locations found matching "$localSearchText"',
-                                style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ),
                           ),
@@ -248,9 +273,13 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
                             itemBuilder: (context, index) {
                               final location = sheetFiltered[index];
                               return ListTile(
-                                leading: const Icon(Icons.home_outlined, color: Colors.black54), // Updated icon for Home
+                                leading: const Icon(
+                                  Icons.home_outlined,
+                                  color: Colors.black54,
+                                ),
                                 title: Text(location.name),
-                                onTap: () => Navigator.pop(sheetContext, location), 
+                                onTap: () =>
+                                    Navigator.pop(sheetContext, location),
                               );
                             },
                           ),
@@ -261,13 +290,13 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
                 ),
               ),
             );
-          }
+          },
         );
       },
     );
 
     if (!mounted || selected == null) return;
-    
+
     setState(() {
       if (selected is String) {
         _addressController.text = selected;
@@ -280,7 +309,7 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
-    
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -292,7 +321,10 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
         ),
         title: Text(
           user?.name ?? 'Profile',
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
       body: SafeArea(
@@ -303,7 +335,7 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.home_outlined, size: 32, color: Colors.black), // Matched sizing to Work Address
+                  Icon(Icons.home_outlined, size: 32, color: Colors.black),
                   SizedBox(width: 12),
                   Text(
                     'Home Address',
@@ -316,13 +348,15 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
                 ],
               ),
               const SizedBox(height: 32),
-              
-              // --- THE NEW STYLED SELECTOR BUTTON ---
+
               GestureDetector(
                 onTap: _openAddressSelector,
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 18,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
@@ -334,11 +368,17 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          _addressController.text.isEmpty ? 'Search campus locations...' : _addressController.text,
+                          _addressController.text.isEmpty
+                              ? 'Search campus locations...'
+                              : _addressController.text,
                           style: TextStyle(
                             fontSize: 16,
-                            color: _addressController.text.isEmpty ? Colors.grey[600] : Colors.black87,
-                            fontWeight: _addressController.text.isEmpty ? FontWeight.normal : FontWeight.w600,
+                            color: _addressController.text.isEmpty
+                                ? Colors.grey[600]
+                                : Colors.black87,
+                            fontWeight: _addressController.text.isEmpty
+                                ? FontWeight.normal
+                                : FontWeight.w600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -348,9 +388,9 @@ class _HomeAddressEditScreenState extends ConsumerState<HomeAddressEditScreen> {
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 32),
-              
+
               SizedBox(
                 width: double.infinity,
                 height: 56,

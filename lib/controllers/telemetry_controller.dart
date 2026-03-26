@@ -4,7 +4,7 @@ import '../repositories/telemetry_repository.dart';
 
 final telemetryRepositoryProvider = Provider((ref) => TelemetryRepository());
 
-// Commuters watch this to see the driver move on the map
+// Commuters use this to see the driver move on the map
 final driverLocationProvider = StreamProvider.family<DriverTelemetry?, String>((
   ref,
   driverID,

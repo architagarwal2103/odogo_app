@@ -15,10 +15,15 @@ class PickupConfirmedScreen extends ConsumerStatefulWidget {
   final LatLng? dropoffPoint;
   final String tripID;
 
-  const PickupConfirmedScreen({super.key, required this.tripID, this.dropoffPoint});
+  const PickupConfirmedScreen({
+    super.key,
+    required this.tripID,
+    this.dropoffPoint,
+  });
 
   @override
-  ConsumerState<PickupConfirmedScreen> createState() => _PickupConfirmedScreenState();
+  ConsumerState<PickupConfirmedScreen> createState() =>
+      _PickupConfirmedScreenState();
 }
 
 class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
@@ -90,28 +95,29 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
       return;
     }
 
-    _userLocationSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(distanceFilter: 3),
-    ).listen((position) {
-      if (!mounted) return;
+    _userLocationSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(distanceFilter: 3),
+        ).listen((position) {
+          if (!mounted) return;
 
-      final newLocation = LatLng(position.latitude, position.longitude);
-      final distanceMoved = Geolocator.distanceBetween(
-        _userLocation.latitude,
-        _userLocation.longitude,
-        newLocation.latitude,
-        newLocation.longitude,
-      );
+          final newLocation = LatLng(position.latitude, position.longitude);
+          final distanceMoved = Geolocator.distanceBetween(
+            _userLocation.latitude,
+            _userLocation.longitude,
+            newLocation.latitude,
+            newLocation.longitude,
+          );
 
-      setState(() {
-        _userLocation = newLocation;
-      });
+          setState(() {
+            _userLocation = newLocation;
+          });
 
-      // Refresh route if user moved 15m+
-      if (distanceMoved >= _routeRefreshThresholdMeters) {
-        _loadRoadRoute();
-      }
-    });
+          // Refresh route if user moved 15m+
+          if (distanceMoved >= _routeRefreshThresholdMeters) {
+            _loadRoadRoute();
+          }
+        });
   }
 
   Future<void> _loadRoadRoute() async {
@@ -223,12 +229,18 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
   EdgeInsets _cameraFitPadding() {
     final baseMargin = 28.0;
     final bottomPadding = _bottomCardHeight + (baseMargin * 1.5);
-    return EdgeInsets.only(top: baseMargin, left: baseMargin, right: baseMargin, bottom: bottomPadding);
+    return EdgeInsets.only(
+      top: baseMargin,
+      left: baseMargin,
+      right: baseMargin,
+      bottom: bottomPadding,
+    );
   }
 
   void _measureBottomCardHeight() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final renderBox = _bottomCardKey.currentContext?.findRenderObject() as RenderBox?;
+      final renderBox =
+          _bottomCardKey.currentContext?.findRenderObject() as RenderBox?;
       if (renderBox != null) {
         final height = renderBox.size.height;
         if (height != _bottomCardHeight) {
@@ -273,12 +285,14 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
   Widget build(BuildContext context) {
     ref.listen(activeTripStreamProvider(widget.tripID), (previous, next) {
       final trip = next.value;
-      if (trip != null && trip.driverEnd == true) { 
+      if (trip != null && trip.driverEnd == true) {
         // Instantly push the commuter to the final confirmation screen!
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => TripEndRequestScreen(tripID: widget.tripID), // Make sure to update this screen to accept the ID too!
+            builder: (context) => TripEndRequestScreen(
+              tripID: widget.tripID,
+            ), // Make sure to update this screen to accept the ID too!
           ),
         );
       }
@@ -315,10 +329,26 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
                   tileBuilder: (context, tileWidget, tile) {
                     return ColorFiltered(
                       colorFilter: const ColorFilter.matrix([
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        0,       0,       0,       1, 0,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
                       ]),
                       child: tileWidget,
                     );
@@ -364,7 +394,11 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
                       point: _dropoffLocation,
                       width: 40,
                       height: 40,
-                      child: const Icon(Icons.location_on, color: Colors.redAccent, size: 40),
+                      child: const Icon(
+                        Icons.location_on,
+                        color: Colors.redAccent,
+                        size: 40,
+                      ),
                     ),
                   ],
                 ),
@@ -372,7 +406,6 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
             ),
           ),
 
-          // 2. Back Button Overlay
           Positioned(
             top: 50,
             left: 16,
@@ -385,7 +418,6 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
             ),
           ),
 
-          // 3. Bottom Card (Driver-style layout)
           Positioned(
             bottom: 24,
             left: 20,
@@ -419,7 +451,10 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: odogoGreen.withOpacity(0.2),
                           borderRadius: BorderRadius.circular(20),
@@ -443,7 +478,11 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
                           color: Colors.red.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.location_on, color: Colors.red, size: 24),
+                        child: const Icon(
+                          Icons.location_on,
+                          color: Colors.red,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
@@ -452,18 +491,28 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
                           children: [
                             Text(
                               trip?.endLocName ?? '---',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                             const Text(
                               'IIT Kanpur Campus',
-                              style: TextStyle(color: Colors.grey, fontSize: 13),
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 13,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const Divider(height: 32, thickness: 1, color: Colors.black12),
+                  const Divider(
+                    height: 32,
+                    thickness: 1,
+                    color: Colors.black12,
+                  ),
                   Row(
                     children: [
                       CircleAvatar(
@@ -482,12 +531,24 @@ class _PickupConfirmedScreenState extends ConsumerState<PickupConfirmedScreen> {
                         ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.phone_in_talk, color: Colors.grey[700]),
-                        onPressed: () => ContactLauncherService.callNumber(context, driverPhone),
+                        icon: Icon(
+                          Icons.phone_in_talk,
+                          color: Colors.grey[700],
+                        ),
+                        onPressed: () => ContactLauncherService.callNumber(
+                          context,
+                          driverPhone,
+                        ),
                       ),
                       IconButton(
-                        icon: Icon(Icons.chat_bubble_outline, color: Colors.grey[700]),
-                        onPressed: () => ContactLauncherService.smsNumber(context, driverPhone),
+                        icon: Icon(
+                          Icons.chat_bubble_outline,
+                          color: Colors.grey[700],
+                        ),
+                        onPressed: () => ContactLauncherService.smsNumber(
+                          context,
+                          driverPhone,
+                        ),
                       ),
                     ],
                   ),

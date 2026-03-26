@@ -9,7 +9,7 @@ import 'package:odogo_app/controllers/auth_controller.dart';
 import 'package:odogo_app/controllers/trip_controller.dart';
 import 'package:odogo_app/models/enums.dart';
 import 'package:odogo_app/models/trip_model.dart';
-import 'waiting_for_driver_screen.dart'; // Import the waiting screen!
+import 'waiting_for_driver_screen.dart';
 import 'dart:math';
 
 class TripConfirmationScreen extends ConsumerStatefulWidget {
@@ -30,10 +30,12 @@ class TripConfirmationScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<TripConfirmationScreen> createState() => _TripConfirmationScreenState();
+  ConsumerState<TripConfirmationScreen> createState() =>
+      _TripConfirmationScreenState();
 }
 
-class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen> {
+class _TripConfirmationScreenState
+    extends ConsumerState<TripConfirmationScreen> {
   List<LatLng>? _routePoints;
   static const double _minFitDistanceMeters = 5;
 
@@ -101,7 +103,7 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
 
       return CameraFit.bounds(
         bounds: LatLngBounds.fromPoints(_routePoints!),
-        padding: const EdgeInsets.all(40), // Added more padding so it doesn't hide behind the bottom sheet
+        padding: const EdgeInsets.all(40),
       );
     }
 
@@ -120,7 +122,10 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
     }
 
     return CameraFit.bounds(
-      bounds: LatLngBounds.fromPoints([widget.pickupPoint!, widget.dropoffPoint!]),
+      bounds: LatLngBounds.fromPoints([
+        widget.pickupPoint!,
+        widget.dropoffPoint!,
+      ]),
       padding: const EdgeInsets.all(40),
     );
   }
@@ -142,9 +147,12 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        backgroundColor: Colors.black, // Synced to OdoGo theme
+        backgroundColor: Colors.black,
         elevation: 0,
-        title: const Text('Trip Details', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Trip Details',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
@@ -152,12 +160,12 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
       ),
       body: Column(
         children: [
-          // 1. FULL SCREEN MAP AREA
           Expanded(
             child: FlutterMap(
               key: ValueKey<int>(routePoints?.length ?? 0),
               options: MapOptions(
-                initialCenter: widget.pickupPoint ?? const LatLng(26.5123, 80.2329),
+                initialCenter:
+                    widget.pickupPoint ?? const LatLng(26.5123, 80.2329),
                 initialZoom: 15,
                 initialCameraFit: _initialCameraFit(),
               ),
@@ -168,10 +176,26 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
                   tileBuilder: (context, tileWidget, tile) {
                     return ColorFiltered(
                       colorFilter: const ColorFilter.matrix([
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        0,       0,       0,       1, 0,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
                       ]),
                       child: tileWidget,
                     );
@@ -195,39 +219,55 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
                           point: widget.pickupPoint!,
                           width: 34,
                           height: 34,
-                          child: const Icon(Icons.my_location, color: Color(0xFF66D2A3), size: 28),
+                          child: const Icon(
+                            Icons.my_location,
+                            color: Color(0xFF66D2A3),
+                            size: 28,
+                          ),
                         ),
                       if (widget.dropoffPoint != null)
                         Marker(
                           point: widget.dropoffPoint!,
                           width: 34,
                           height: 34,
-                          child: const Icon(Icons.location_on, color: Colors.redAccent, size: 30),
+                          child: const Icon(
+                            Icons.location_on,
+                            color: Colors.redAccent,
+                            size: 30,
+                          ),
                         ),
                     ],
                   ),
               ],
             ),
           ),
-          
-          // 2. BOTTOM DETAILS & ACTION SHEET
+
           Container(
-            padding: const EdgeInsets.only(top: 24, left: 20, right: 20, bottom: 30),
+            padding: const EdgeInsets.only(
+              top: 24,
+              left: 20,
+              right: 20,
+              bottom: 30,
+            ),
             decoration: const BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)), // Rounded top corners
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, -5))
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 15,
+                  offset: Offset(0, -5),
+                ),
               ],
             ),
             child: SafeArea(
-              top: false, // Prevents safe area from adding space at the top of the container
+              top:
+                  false, // Prevents safe area from adding space at the top of the container
               child: Column(
-                mainAxisSize: MainAxisSize.min, // Wraps tightly around the content
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Location Cards
                   _buildLocationCard(
-                    icon: Icons.my_location, // Changed to a dot-style icon for pickup
+                    icon: Icons.my_location,
                     label: 'PICKUP',
                     address: widget.pickupLabel,
                   ),
@@ -241,21 +281,27 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
 
                   ElevatedButton(
                     onPressed: () async {
-                      // 1. Grab the current user
+                      // Grab the current user
                       final currentUser = ref.read(currentUserProvider);
                       if (currentUser == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Error: User not logged in')),
+                          const SnackBar(
+                            content: Text('Error: User not logged in'),
+                          ),
                         );
                         return;
                       }
 
-                      final String uniqueTripId = 'trip_${DateTime.now().millisecondsSinceEpoch}';
-                      
-                      // Generate a random 4-digit PIN
-                      final String generatedPin = Random().nextInt(10000).toString().padLeft(4, '0');
+                      final String uniqueTripId =
+                          'trip_${DateTime.now().millisecondsSinceEpoch}';
 
-                      // 3. Create the TripModel
+                      // Generate a random 4-digit PIN
+                      final String generatedPin = Random()
+                          .nextInt(10000)
+                          .toString()
+                          .padLeft(4, '0');
+
+                      // Create the TripModel
                       final newTrip = TripModel(
                         tripID: uniqueTripId,
                         commuterName: currentUser.name,
@@ -267,19 +313,22 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
                         startLongitude: widget.pickupPoint?.longitude,
                         endLocName: widget.destination,
                         startTime: null,
-                        status: TripStatus.pending, 
+                        status: TripStatus.pending,
                         ridePIN: generatedPin,
                         driverEnd: false,
                         commuterEnd: false,
                         eta: null,
                         scheduledTime: null,
+                        bookingTime: DateTime.now(),
                       );
 
-                      // 4. Send it to Firestore via the Controller
+                      // Send it to Firestore via the Controller
                       try {
-                        await ref.read(tripControllerProvider.notifier).requestRide(newTrip);
+                        await ref
+                            .read(tripControllerProvider.notifier)
+                            .requestRide(newTrip);
 
-                        // 5. If successful, navigate to the waiting screen with ALL data
+                        // If successful, navigate to the waiting screen with ALL data
                         if (mounted) {
                           Navigator.pushReplacement(
                             context,
@@ -295,7 +344,14 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
                       } catch (e) {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Failed to request ride: $e'.replaceFirst('Exception: ', '').trim()), backgroundColor: Colors.red),
+                            SnackBar(
+                              content: Text(
+                                'Failed to request ride: $e'
+                                    .replaceFirst('Exception: ', '')
+                                    .trim(),
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
                           );
                         }
                       }
@@ -304,10 +360,18 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
                       backgroundColor: const Color(0xFF66D2A3),
                       foregroundColor: Colors.black,
                       minimumSize: const Size.fromHeight(56),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       elevation: 0,
                     ),
-                    child: const Text('Confirm Trip', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Confirm Trip',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -318,11 +382,17 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
     );
   }
 
-  Widget _buildLocationCard({required IconData icon, required String label, required String address}) {
+  Widget _buildLocationCard({
+    required IconData icon,
+    required String label,
+    required String address,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8F6F6), // Very light grey background to separate from the white sheet
+        color: const Color(
+          0xFFF8F6F6,
+        ), // Very light grey background to separate from the white sheet
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.grey.shade200),
       ),
@@ -334,9 +404,23 @@ class _TripConfirmationScreenState extends ConsumerState<TripConfirmationScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(address, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+                Text(
+                  address,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
               ],
             ),
           ),

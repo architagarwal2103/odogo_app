@@ -3,19 +3,21 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../controllers/trip_controller.dart'; 
-import 'commuter_home.dart'; // To route back to the commuter dashboard
+import '../controllers/trip_controller.dart';
+import 'commuter_home.dart';
 
 class CommuterCancelConfirmationScreen extends ConsumerStatefulWidget {
-  final String tripID; 
-  
+  final String tripID;
+
   const CommuterCancelConfirmationScreen({super.key, required this.tripID});
 
   @override
-  ConsumerState<CommuterCancelConfirmationScreen> createState() => _CommuterCancelConfirmationScreenState();
+  ConsumerState<CommuterCancelConfirmationScreen> createState() =>
+      _CommuterCancelConfirmationScreenState();
 }
 
-class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCancelConfirmationScreen> {
+class _CommuterCancelConfirmationScreenState
+    extends ConsumerState<CommuterCancelConfirmationScreen> {
   final Color odogoGreen = const Color(0xFF66D2A3);
   bool _isLoading = false;
   LatLng? _currentLocation;
@@ -32,7 +34,9 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
       permission = await Geolocator.requestPermission();
     }
 
-    if (!mounted || permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (!mounted ||
+        permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       return;
     }
 
@@ -40,7 +44,9 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
     if (!serviceEnabled || !mounted) return;
 
     try {
-      final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       if (!mounted) return;
       setState(() {
         _currentLocation = LatLng(position.latitude, position.longitude);
@@ -54,12 +60,12 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
     });
 
     try {
-      // 1. Tell the backend to kill the trip
+      // Telling backend to kill the trip
       await ref.read(tripControllerProvider.notifier).cancelRide(widget.tripID);
 
       if (!mounted) return;
 
-      // 2. Show confirmation snackbar
+      // Show confirmation snackbar
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Ride cancelled successfully'),
@@ -68,14 +74,11 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
         ),
       );
 
-      // 3. NUCLEAR ROUTING FIX: 
-      // Wipe the broken navigation stack and force the Commuter Dashboard to rebuild from scratch.
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const CommuterHomeScreen()),
         (route) => false,
       );
-
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -83,7 +86,9 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error cancelling ride: $e'.replaceFirst('Exception: ', '')),
+          content: Text(
+            'Error cancelling ride: $e'.replaceFirst('Exception: ', ''),
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -102,7 +107,9 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
               options: MapOptions(
                 initialCenter: _currentLocation!,
                 initialZoom: 16.5,
-                interactionOptions: const InteractionOptions(flags: InteractiveFlag.none),
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.none,
+                ),
               ),
               children: [
                 TileLayer(
@@ -111,10 +118,26 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
                   tileBuilder: (context, tileWidget, tile) {
                     return ColorFiltered(
                       colorFilter: const ColorFilter.matrix([
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        -0.2126, -0.7152, -0.0722, 0, 255,
-                        0,       0,       0,       1, 0,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        -0.2126,
+                        -0.7152,
+                        -0.0722,
+                        0,
+                        255,
+                        0,
+                        0,
+                        0,
+                        1,
+                        0,
                       ]),
                       child: tileWidget,
                     );
@@ -134,7 +157,13 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
-                boxShadow: [BoxShadow(color: Colors.black54, blurRadius: 20, offset: Offset(0, -5))],
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black54,
+                    blurRadius: 20,
+                    offset: Offset(0, -5),
+                  ),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -145,22 +174,34 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
                       color: Colors.red.withOpacity(0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.warning_amber_rounded, color: Colors.red, size: 48),
+                    child: const Icon(
+                      Icons.warning_amber_rounded,
+                      color: Colors.red,
+                      size: 48,
+                    ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   const Text(
                     'Cancel Trip?',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   const Text(
                     'Are you sure you want to cancel this ride? You can cancel at most 2 rides in 15 minutes.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 15, color: Colors.grey, height: 1.4),
+                    style: TextStyle(
+                      fontSize: 15,
+                      color: Colors.grey,
+                      height: 1.4,
+                    ),
                   ),
                   const SizedBox(height: 32),
-                  
+
                   Column(
                     children: [
                       // NO
@@ -171,31 +212,56 @@ class _CommuterCancelConfirmationScreenState extends ConsumerState<CommuterCance
                           style: ElevatedButton.styleFrom(
                             backgroundColor: odogoGreen,
                             foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                             elevation: 0,
                           ),
-                          onPressed: _isLoading ? null : () => Navigator.pop(context), 
-                          child: const Text('No, Keep Ride', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          onPressed: _isLoading
+                              ? null
+                              : () => Navigator.pop(context),
+                          child: const Text(
+                            'No, Keep Ride',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // YES 
+                      // YES
                       SizedBox(
                         width: double.infinity,
                         height: 56,
                         child: OutlinedButton(
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: _isLoading ? Colors.grey : Colors.red, width: 2),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            side: BorderSide(
+                              color: _isLoading ? Colors.grey : Colors.red,
+                              width: 2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                           onPressed: _isLoading ? null : _confirmCancel,
-                          child: _isLoading 
+                          child: _isLoading
                               ? const SizedBox(
-                                  height: 20, 
-                                  width: 20, 
-                                  child: CircularProgressIndicator(color: Colors.red, strokeWidth: 2)
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.red,
+                                    strokeWidth: 2,
+                                  ),
                                 )
-                              : const Text('Yes, Cancel Trip', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+                              : const Text(
+                                  'Yes, Cancel Trip',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
                         ),
                       ),
                     ],

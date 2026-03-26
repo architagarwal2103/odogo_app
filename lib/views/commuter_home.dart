@@ -40,7 +40,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Kickstart the background t=0 monitor
+    // Start the background t=0 monitor
     ref.listen(timeTickerProvider, (previous, next) {
       final now = next.value ?? DateTime.now();
       final trips = ref.read(commuterTripsProvider).value ?? [];
@@ -56,10 +56,75 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
                 .confirmScheduledRide(trip.tripID);
           }
         }
+
+        // Immediate Ride 15-Minute Expiry Logic
+        if (trip.status == TripStatus.pending && trip.scheduledTime == null) {
+          final expiryTime = trip.bookingTime.add(const Duration(minutes: 15));
+
+          if (now.isAfter(expiryTime)) {
+            // Cancel in the database (stops driver broadcast immediately)
+            ref
+                .read(tripControllerProvider.notifier)
+                .autoCancelExpiredRide(trip.tripID);
+
+            // Show SnackBar
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Can't find a ride in time. Sorry! Try later."),
+                backgroundColor: Colors.redAccent,
+                duration: Duration(seconds: 4),
+              ),
+            );
+
+            // Trigger Native Push Notification
+            NotificationService().showNotification(
+              title: 'Ride Expired',
+              body:
+                  "We couldn't find a driver for your ride. Please try again later.",
+            );
+          }
+        }
+
+        // Scheduled Ride 15-Minute Expiry Logic
+        if (trip.status == TripStatus.scheduled &&
+            trip.scheduledTime != null &&
+            trip.driverID == null) {
+          // Ensures a driver hasn't already claimed it
+
+          // Calculate expiry time (Scheduled Time + 15 minutes)
+          final expiryTime = trip.scheduledTime!.add(
+            const Duration(minutes: 15),
+          );
+
+          if (now.isAfter(expiryTime)) {
+            // Cancel in the database
+            ref
+                .read(tripControllerProvider.notifier)
+                .autoCancelExpiredRide(trip.tripID);
+
+            // Show SnackBar
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  "No driver accepted your scheduled ride. Please try again.",
+                ),
+                backgroundColor: Colors.redAccent,
+                duration: Duration(seconds: 4),
+              ),
+            );
+
+            // Trigger Native Push Notification
+            NotificationService().showNotification(
+              title: 'Scheduled Ride Cancelled',
+              body:
+                  "We couldn't find a driver for your scheduled ride. Please try again.",
+            );
+          }
+        }
       }
     });
 
-    // 2. Listen for the exact moment a trip changes status
+    // Listen for the exact moment a trip changes status
     ref.listen(commuterTripsProvider, (previous, next) {
       final previousTrips = previous?.value ?? [];
       final nextTrips = next.value ?? [];
@@ -93,7 +158,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
           orElse: () => newTrip,
         );
 
-        // A. Scheduled Ride hits t=0
+        // Scheduled Ride hits t=0
         if (oldTrip.status == TripStatus.scheduled &&
             newTrip.status == TripStatus.confirmed) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -132,7 +197,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
             resolvedDropoff = LatLng(dLoc.latitude, dLoc.longitude);
           } catch (_) {} // If not found, leaves it as null
 
-          // C. Auto-route to the Ride Confirmed screen
+          // Auto-route to the Ride Confirmed screen
           Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
               Navigator.push(
@@ -148,7 +213,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
             }
           });
         }
-        // B. Immediate Ride is Accepted (Pending -> Confirmed)
+        // Immediate Ride is Accepted (Pending -> Confirmed)
         else if (oldTrip.status == TripStatus.pending &&
             newTrip.status == TripStatus.confirmed) {
           NotificationService().showNotification(
@@ -157,7 +222,7 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
           );
           // Auto-routing is already handled perfectly inside your WaitingForDriverScreen!
         }
-        // C. Ride Officially Starts (Confirmed -> Ongoing)
+        // Ride Officially Starts (Confirmed -> Ongoing)
         else if (oldTrip.status == TripStatus.confirmed &&
             newTrip.status == TripStatus.ongoing) {
           NotificationService().showNotification(
@@ -166,12 +231,32 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
           );
           // Auto-routing is already handled perfectly inside your RideConfirmedScreen!
         }
-        // D. Ride Successfully Completes (Ongoing -> Completed)
+        // Ride Successfully Completes (Ongoing -> Completed)
         else if (oldTrip.status == TripStatus.ongoing &&
             newTrip.status == TripStatus.completed) {
           NotificationService().showNotification(
             title: 'Trip Ended',
             body: 'Thank you for riding with OdoGo!',
+          );
+        }
+        // Driver cancelled a scheduled ride (goes back to broadcasting)
+        else if (oldTrip.status == TripStatus.scheduled &&
+            newTrip.status == TripStatus.scheduled &&
+            oldTrip.driverID != null &&
+            newTrip.driverID == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'The driver cancelled your scheduled ride. It is back in the search pool.',
+              ),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          NotificationService().showNotification(
+            title: 'Driver Cancelled',
+            body:
+                'Your driver cancelled the scheduled ride. We are searching for a new one.',
           );
         }
       }
@@ -204,9 +289,6 @@ class _CommuterHomeScreenState extends ConsumerState<CommuterHomeScreen> {
   }
 }
 
-// ============================================================================
-// SECTION: The Home (Map) Tab UI
-// ============================================================================
 class _MapHomeView extends ConsumerStatefulWidget {
   const _MapHomeView();
 
@@ -471,7 +553,7 @@ class _MapHomeViewState extends ConsumerState<_MapHomeView>
     return nearest.name;
   }
 
-  // --- PICKUP SELECTOR ---
+  // PICKUP SELECTOR
   Future<void> _openPickupSelector() async {
     String localSearchText = '';
 
@@ -631,7 +713,6 @@ class _MapHomeViewState extends ConsumerState<_MapHomeView>
                                 Navigator.pop(sheetContext, workAddress),
                           ),
 
-                        // REMOVED custom string input tile here. Added "No Results" message.
                         if (localSearchText.isNotEmpty &&
                             sheetFiltered.isEmpty &&
                             !showHome &&
@@ -704,7 +785,7 @@ class _MapHomeViewState extends ConsumerState<_MapHomeView>
     });
   }
 
-  // --- DROPOFF SELECTOR ---
+  // DROPOFF SELECTOR
   Future<void> _openDropoffSelector() async {
     String localSearchText = '';
 
@@ -852,7 +933,6 @@ class _MapHomeViewState extends ConsumerState<_MapHomeView>
                                 Navigator.pop(sheetContext, workAddress),
                           ),
 
-                        // REMOVED custom string input tile here. Added "No Results" message.
                         if (localSearchText.isNotEmpty &&
                             sheetFiltered.isEmpty &&
                             !showHome &&
