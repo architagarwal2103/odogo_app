@@ -81,7 +81,7 @@ class _WaitingForDriverScreenState
         ),
       );
 
-      Navigator.pop(context);
+      //Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
       setState(() => _isCancelling = false);
@@ -105,7 +105,7 @@ class _WaitingForDriverScreenState
           prevTrip?.status == TripStatus.pending) {
         if (mounted) {
           // Drops the user back to the Home Screen where the SnackBar is waiting!
-          Navigator.pop(context);
+          Navigator.of(context).popUntil((route) => route.isFirst);
         }
         return;
       }
@@ -134,17 +134,10 @@ class _WaitingForDriverScreenState
       backgroundColor: Colors.black,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.transparent,
         elevation: 0,
         toolbarHeight: 70,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.white,
-            shadows: [Shadow(color: Colors.black, blurRadius: 10)],
-          ),
-          onPressed: _isCancelling ? null : _cancelRide,
-        ),
         title: Image.asset(
           'assets/images/odogo_logo_black_bg.jpeg',
           height: 40,
