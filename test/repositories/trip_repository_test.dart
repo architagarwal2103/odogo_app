@@ -15,7 +15,7 @@ void main() {
     commuterName: 'Archit',
     commuterID: 'user_99',
     startLocName: 'IIT Kanpur',
-    endLocName: 'Kanpur Central',
+    endLocName: 'Hall 5',
     startTime: DateTime.now(),
     ridePIN: '1234',
     driverEnd: false,
