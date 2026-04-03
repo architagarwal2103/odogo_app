@@ -12,11 +12,16 @@ import 'package:odogo_app/models/user_model.dart';
 import 'package:odogo_app/models/enums.dart';
 
 class MockTripRepository extends Mock implements TripRepository {}
+
 class MockUserRepository extends Mock implements UserRepository {}
-class MockAuthController extends Notifier<AuthState> with Mock implements AuthController {
+
+class MockAuthController extends Notifier<AuthState>
+    with Mock
+    implements AuthController {
   @override
   AuthState build() => AuthInitial();
 }
+
 class FakeTripModel extends Fake implements TripModel {}
 
 void main() {
@@ -50,7 +55,7 @@ void main() {
     tripID: 'trip_123',
     status: TripStatus.scheduled,
     commuterName: 'Aditya',
-    commuterID: 'commuter@test.com', 
+    commuterID: 'commuter@test.com',
     startLocName: 'Hall 1', // Strict match
     endLocName: 'Main Gate', // Strict match
     startTime: DateTime.now().add(const Duration(hours: 2)),
@@ -89,20 +94,29 @@ void main() {
     test('completeRide updates status when both parties finished', () async {
       when(() => mockTripRepo.getTripRawData(tTripId)).thenAnswer(
         (_) async => {
-          'driverID': 'test@test.com', 
+          'driverID': 'test@test.com',
           'driverEnd': true,
           'commuterEnd': true,
         },
       );
 
-      when(() => mockTripRepo.updateTripData(any(), any())).thenAnswer((_) async {});
-      when(() => mockUserRepo.updateUser(any(), any())).thenAnswer((_) async {});
+      when(
+        () => mockTripRepo.updateTripData(any(), any()),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockUserRepo.updateUser(any(), any()),
+      ).thenAnswer((_) async {});
       when(() => mockAuthController.refreshUser()).thenAnswer((_) async {});
 
       final controller = container.read(tripControllerProvider.notifier);
       await controller.completeRide(tripID: tTripId, isDriver: true);
 
-      verify(() => mockTripRepo.updateTripData(tTripId, any(that: containsValue(TripStatus.completed.name)))).called(1);
+      verify(
+        () => mockTripRepo.updateTripData(
+          tTripId,
+          any(that: containsValue(TripStatus.completed.name)),
+        ),
+      ).called(1);
     });
 
     test('cancelRide throws exception on 2nd cancel in 15 mins', () async {
@@ -123,7 +137,7 @@ void main() {
       );
 
       when(() => mockTripRepo.getTripRawData(tTripId)).thenAnswer(
-        (_) async => {'driverID': 'test@test.com', 'status': 'confirmed'}, 
+        (_) async => {'driverID': 'test@test.com', 'status': 'confirmed'},
       );
 
       final controller = localContainer.read(tripControllerProvider.notifier);
@@ -135,45 +149,99 @@ void main() {
     });
 
     test('Controller state is loading while startRide is in progress', () {
-      when(() => mockTripRepo.updateTripData(any(), any()))
-          .thenAnswer((_) => Future.delayed(const Duration(seconds: 1)));
+      when(
+        () => mockTripRepo.updateTripData(any(), any()),
+      ).thenAnswer((_) => Future.delayed(const Duration(seconds: 1)));
 
       final controller = container.read(tripControllerProvider.notifier);
-      
+
       controller.startRide(tTripId);
       expect(container.read(tripControllerProvider).isLoading, true);
     });
+
+    test(
+      'cancelRide by Driver successfully unassigns driver, resets trip, and updates mode',
+      () async {
+        const tripID = 'trip_driver_cancel';
+        final currentUserEmail = 'test@test.com';
+
+        // Fake the trip data to look like the driver previously accepted it
+        when(() => mockTripRepo.getTripRawData(tripID)).thenAnswer(
+          (_) async => {'driverID': currentUserEmail, 'status': 'confirmed'},
+        );
+
+        // Allow all database updates to succeed quietly
+        when(
+          () => mockTripRepo.updateTripData(any(), any()),
+        ).thenAnswer((_) async {});
+        when(
+          () => mockUserRepo.updateUser(any(), any()),
+        ).thenAnswer((_) async {});
+        when(() => mockAuthController.refreshUser()).thenAnswer((_) async {});
+
+        final controller = container.read(tripControllerProvider.notifier);
+
+        // The driver hits "Cancel Ride"
+        await controller.cancelRide(tripID);
+
+        // Verify the trip was pushed back to the pending pool and driver details were wiped!
+        verify(
+          () => mockTripRepo.updateTripData(tripID, {
+            'status': TripStatus.pending.name,
+            'driverID': null,
+            'driverName': null,
+          }),
+        ).called(1);
+
+        // Verify the driver was put back "online" so they can receive new requests
+        verify(
+          () => mockUserRepo.updateUser(currentUserEmail, {
+            'mode': DriverMode.online.name,
+          }),
+        ).called(1);
+        verify(() => mockAuthController.refreshUser()).called(1);
+
+        final state = container.read(tripControllerProvider);
+        expect(state.hasError, false);
+      },
+    );
   });
 
   group('TripController - Point 4: Confirm Booking (requestRide)', () {
-    test('requestRide successfully calls repository to create a trip', () async {
-      when(() => mockTripRepo.createTrip(any())).thenAnswer((_) async {});
+    test(
+      'requestRide successfully calls repository to create a trip',
+      () async {
+        when(() => mockTripRepo.createTrip(any())).thenAnswer((_) async {});
 
-      final controller = container.read(tripControllerProvider.notifier);
-      final dummyTrip = FakeTripModel();
+        final controller = container.read(tripControllerProvider.notifier);
+        final dummyTrip = FakeTripModel();
 
-      await controller.requestRide(dummyTrip);
+        await controller.requestRide(dummyTrip);
 
-      verify(() => mockTripRepo.createTrip(any())).called(1);
-      final state = container.read(tripControllerProvider);
-      expect(state.isLoading, false);
-      expect(state.hasError, false);
-    });
+        verify(() => mockTripRepo.createTrip(any())).called(1);
+        final state = container.read(tripControllerProvider);
+        expect(state.isLoading, false);
+        expect(state.hasError, false);
+      },
+    );
 
-    test('requestRide sets state to AsyncError when database throws an exception', () async {
-      final dbError = Exception('No Internet Connection or Database Timeout');
-      when(() => mockTripRepo.createTrip(any())).thenThrow(dbError);
+    test(
+      'requestRide sets state to AsyncError when database throws an exception',
+      () async {
+        final dbError = Exception('No Internet Connection or Database Timeout');
+        when(() => mockTripRepo.createTrip(any())).thenThrow(dbError);
 
-      final controller = container.read(tripControllerProvider.notifier);
-      final dummyTrip = FakeTripModel();
+        final controller = container.read(tripControllerProvider.notifier);
+        final dummyTrip = FakeTripModel();
 
-      await controller.requestRide(dummyTrip);
+        await controller.requestRide(dummyTrip);
 
-      final state = container.read(tripControllerProvider);
-      expect(state.isLoading, false);
-      expect(state.hasError, true);
-      expect(state.error, dbError);
-    });
+        final state = container.read(tripControllerProvider);
+        expect(state.isLoading, false);
+        expect(state.hasError, true);
+        expect(state.error, dbError);
+      },
+    );
   });
 
   group('TripController - Scheduled Rides & Timeouts', () {
@@ -184,78 +252,229 @@ void main() {
       await controller.scheduleRide(scheduledTrip);
 
       verify(() => mockTripRepo.createTrip(scheduledTrip)).called(1);
-      expect(container.read(tripControllerProvider), const AsyncValue<void>.data(null));
+      expect(
+        container.read(tripControllerProvider),
+        const AsyncValue<void>.data(null),
+      );
     });
 
-    test('acceptRide successfully claims a scheduled ride and updates driver mode', () async {
-      const tripID = 'trip_123';
-      const driverID = 'driver@test.com'; 
-      const driverName = 'John Doe';
+    test(
+      'acceptRide successfully claims a scheduled ride and updates driver mode',
+      () async {
+        const tripID = 'trip_123';
+        const driverID = 'driver@test.com';
+        const driverName = 'John Doe';
 
-      when(() => mockTripRepo.runAcceptRideTransaction(
-        tripID: tripID,
-        driverID: driverID,
-        driverName: driverName,
-        isScheduled: true,
-      )).thenAnswer((_) async {});
+        when(
+          () => mockTripRepo.runAcceptRideTransaction(
+            tripID: tripID,
+            driverID: driverID,
+            driverName: driverName,
+            isScheduled: true,
+          ),
+        ).thenAnswer((_) async {});
 
-      when(() => mockUserRepo.updateUser(driverID, {'mode': DriverMode.busy.name}))
-          .thenAnswer((_) async {});
+        when(
+          () =>
+              mockUserRepo.updateUser(driverID, {'mode': DriverMode.busy.name}),
+        ).thenAnswer((_) async {});
 
-      when(() => mockAuthController.refreshUser()).thenAnswer((_) async {});
+        when(() => mockAuthController.refreshUser()).thenAnswer((_) async {});
 
-      final controller = container.read(tripControllerProvider.notifier);
+        final controller = container.read(tripControllerProvider.notifier);
 
-      await controller.acceptRide(tripID, driverName, driverID, isScheduled: true);
+        await controller.acceptRide(
+          tripID,
+          driverName,
+          driverID,
+          isScheduled: true,
+        );
 
-      verify(() => mockTripRepo.runAcceptRideTransaction(
-        tripID: tripID,
-        driverID: driverID,
-        driverName: driverName,
-        isScheduled: true,
-      )).called(1);
-      
-      verify(() => mockUserRepo.updateUser(driverID, {'mode': DriverMode.busy.name})).called(1);
-      verify(() => mockAuthController.refreshUser()).called(1);
-    });
+        verify(
+          () => mockTripRepo.runAcceptRideTransaction(
+            tripID: tripID,
+            driverID: driverID,
+            driverName: driverName,
+            isScheduled: true,
+          ),
+        ).called(1);
+
+        verify(
+          () =>
+              mockUserRepo.updateUser(driverID, {'mode': DriverMode.busy.name}),
+        ).called(1);
+        verify(() => mockAuthController.refreshUser()).called(1);
+      },
+    );
 
     test('cancelScheduledRideByCommuter marks trip as cancelled', () async {
-      when(() => mockTripRepo.updateTripData('trip_123', {'status': TripStatus.cancelled.name}))
-          .thenAnswer((_) async {});
+      when(
+        () => mockTripRepo.updateTripData('trip_123', {
+          'status': TripStatus.cancelled.name,
+        }),
+      ).thenAnswer((_) async {});
 
       final controller = container.read(tripControllerProvider.notifier);
 
       await controller.cancelScheduledRideByCommuter(scheduledTrip);
 
-      verify(() => mockTripRepo.updateTripData('trip_123', {'status': TripStatus.cancelled.name})).called(1);
+      verify(
+        () => mockTripRepo.updateTripData('trip_123', {
+          'status': TripStatus.cancelled.name,
+        }),
+      ).called(1);
     });
 
-    test('cancelScheduledRideByDriver removes driver but keeps trip scheduled', () async {
-      when(() => mockTripRepo.updateTripData('trip_123', {
-        'driverID': null,
-        'driverName': null,
-      })).thenAnswer((_) async {});
+    test(
+      'cancelScheduledRideByDriver removes driver but keeps trip scheduled',
+      () async {
+        when(
+          () => mockTripRepo.updateTripData('trip_123', {
+            'driverID': null,
+            'driverName': null,
+          }),
+        ).thenAnswer((_) async {});
 
-      final controller = container.read(tripControllerProvider.notifier);
+        final controller = container.read(tripControllerProvider.notifier);
 
-      await controller.cancelScheduledRideByDriver(scheduledTrip);
+        await controller.cancelScheduledRideByDriver(scheduledTrip);
 
-      verify(() => mockTripRepo.updateTripData('trip_123', {
-        'driverID': null,
-        'driverName': null,
-      })).called(1);
-    });
+        verify(
+          () => mockTripRepo.updateTripData('trip_123', {
+            'driverID': null,
+            'driverName': null,
+          }),
+        ).called(1);
+      },
+    );
 
-    test('autoCancelExpiredRide successfully marks trip as cancelled in database', () async {
-      const testTripID = 'trip_999';
+    test(
+      'autoCancelExpiredRide successfully marks trip as cancelled in database',
+      () async {
+        const testTripID = 'trip_999';
 
-      when(() => mockTripRepo.updateTripData(testTripID, {'status': TripStatus.cancelled.name}))
-          .thenAnswer((_) async {});
+        when(
+          () => mockTripRepo.updateTripData(testTripID, {
+            'status': TripStatus.cancelled.name,
+          }),
+        ).thenAnswer((_) async {});
 
-      final controller = container.read(tripControllerProvider.notifier);
-      await controller.autoCancelExpiredRide(testTripID);
+        final controller = container.read(tripControllerProvider.notifier);
+        await controller.autoCancelExpiredRide(testTripID);
 
-      verify(() => mockTripRepo.updateTripData(testTripID, {'status': TripStatus.cancelled.name})).called(1);
-    });
+        verify(
+          () => mockTripRepo.updateTripData(testTripID, {
+            'status': TripStatus.cancelled.name,
+          }),
+        ).called(1);
+      },
+    );
+  });
+
+  group('TripController - Ride Acceptance & Race Conditions', () {
+    test(
+      'acceptRide fails and sets AsyncError when ride is already taken by another driver',
+      () async {
+        const tripID = 'trip_123';
+        const driverID = 'late_driver@test.com';
+        const driverName = 'Late Driver';
+        final transactionError = Exception(
+          'Ride already accepted by another driver',
+        );
+
+        // Simulate the database transaction rejecting the request
+        when(
+          () => mockTripRepo.runAcceptRideTransaction(
+            tripID: tripID,
+            driverID: driverID,
+            driverName: driverName,
+            isScheduled: false,
+          ),
+        ).thenThrow(transactionError);
+
+        final controller = container.read(tripControllerProvider.notifier);
+
+        // The second driver attempts to accept the ride
+        await controller.acceptRide(
+          tripID,
+          driverName,
+          driverID,
+          isScheduled: false,
+        );
+
+        verify(
+          () => mockTripRepo.runAcceptRideTransaction(
+            tripID: tripID,
+            driverID: driverID,
+            driverName: driverName,
+            isScheduled: false,
+          ),
+        ).called(1);
+
+        // Ensure the driver's mode was NOT changed to 'busy'.
+        verifyNever(() => mockUserRepo.updateUser(any(), any()));
+        verifyNever(() => mockAuthController.refreshUser());
+
+        // Verify the controller properly caught the error
+        final state = container.read(tripControllerProvider);
+        expect(state.hasError, true);
+        expect(state.error, transactionError);
+      },
+    );
+
+    test(
+      'acceptRide successfully claims an immediate ride and updates driver mode',
+      () async {
+        const tripID = 'trip_immediate_1';
+        const driverID = 'test@test.com';
+        const driverName = 'Test User';
+
+        // Simulate a perfectly successful database transaction
+        when(
+          () => mockTripRepo.runAcceptRideTransaction(
+            tripID: tripID,
+            driverID: driverID,
+            driverName: driverName,
+            isScheduled: false,
+          ),
+        ).thenAnswer((_) async {});
+
+        // Simulate successful profile update and refresh
+        when(
+          () => mockUserRepo.updateUser(any(), any()),
+        ).thenAnswer((_) async {});
+        when(() => mockAuthController.refreshUser()).thenAnswer((_) async {});
+
+        final controller = container.read(tripControllerProvider.notifier);
+
+        // The driver taps "Accept" on an immediate ride
+        await controller.acceptRide(
+          tripID,
+          driverName,
+          driverID,
+          isScheduled: false,
+        );
+
+        // Verify the exact sequence of backend calls
+        verify(
+          () => mockTripRepo.runAcceptRideTransaction(
+            tripID: tripID,
+            driverID: driverID,
+            driverName: driverName,
+            isScheduled: false,
+          ),
+        ).called(1);
+
+        // Verify the driver was marked as 'busy' so they don't get double-booked!
+        verify(
+          () =>
+              mockUserRepo.updateUser(driverID, {'mode': DriverMode.busy.name}),
+        ).called(1);
+        verify(() => mockAuthController.refreshUser()).called(1);
+
+        final state = container.read(tripControllerProvider);
+        expect(state.hasError, false);
+      },
+    );
   });
 }
